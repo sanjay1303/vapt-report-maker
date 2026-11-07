@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sidebar, NavTab } from './components/layout/Sidebar';
 import { TopNavbar } from './components/layout/TopNavbar';
+import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { ProjectsPage } from './pages/ProjectsPage';
 import { ProjectDetailsPage } from './pages/ProjectDetailsPage';
@@ -11,9 +12,11 @@ import { DetailedReportPage } from './pages/DetailedReportPage';
 import { TemplatesPage } from './pages/TemplatesPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { storage } from './services/storage';
+import { authService } from './services/authService';
 import { Settings } from './types';
 
 export function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => authService.isAuthenticated());
   const [currentTab, setCurrentTab] = useState<NavTab>(() => {
     const params = new URLSearchParams(window.location.search);
     return (params.get('tab') as NavTab) || 'dashboard';
@@ -26,6 +29,19 @@ export function App() {
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [settings, setSettings] = useState<Settings>(() => storage.getSettings());
+
+  useEffect(() => {
+    const handleAuthChange = () => {
+      setIsAuthenticated(authService.isAuthenticated());
+    };
+    window.addEventListener('vapt_auth_changed', handleAuthChange);
+    return () => window.removeEventListener('vapt_auth_changed', handleAuthChange);
+  }, []);
+
+  const handleLogout = () => {
+    authService.logout();
+    setIsAuthenticated(false);
+  };
 
   const handleNavigate = (tab: NavTab, params: any = {}) => {
     setCurrentTab(tab);
@@ -123,6 +139,10 @@ export function App() {
     }
   };
 
+  if (!isAuthenticated) {
+    return <LoginPage onLoginSuccess={() => setIsAuthenticated(true)} />;
+  }
+
   const headerMeta = getHeaderMeta();
 
   return (
@@ -131,6 +151,7 @@ export function App() {
       <Sidebar
         currentTab={currentTab}
         onTabChange={(tab) => handleNavigate(tab)}
+        onLogout={handleLogout}
       />
 
       {/* Main Content Area */}
@@ -145,6 +166,7 @@ export function App() {
           settings={settings}
           onProfileClick={() => handleNavigate('settings')}
           onNavigate={handleNavigate}
+          onLogout={handleLogout}
         />
 
         {/* Page Content */}

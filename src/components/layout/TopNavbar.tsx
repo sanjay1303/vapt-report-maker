@@ -11,6 +11,8 @@ import {
   ExternalLink,
   Database,
   Cloud,
+  LogOut,
+  ChevronDown,
 } from 'lucide-react';
 import { Settings } from '../../types';
 import { storage } from '../../services/storage';
@@ -27,6 +29,7 @@ interface TopNavbarProps {
   settings: Settings;
   onProfileClick?: () => void;
   onNavigate?: (tab: NavTab, params?: any) => void;
+  onLogout?: () => void;
 }
 
 export const TopNavbar: React.FC<TopNavbarProps> = ({
@@ -38,11 +41,14 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
   settings,
   onProfileClick,
   onNavigate,
+  onLogout,
 }) => {
   const [isOpenResults, setIsOpenResults] = useState(false);
   const [isDbModalOpen, setIsDbModalOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [cloudConfig, setCloudConfig] = useState<CloudDbConfig>(() => cloudDb.getConfig());
   const searchRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     return cloudDb.subscribe(setCloudConfig);
@@ -52,6 +58,9 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
     const handleClickOutside = (e: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
         setIsOpenResults(false);
+      }
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setIsUserMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -296,21 +305,79 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
           <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary-600 ring-2 ring-white"></span>
         </button>
 
-        {/* User Profile Pill */}
-        <div
-          onClick={onProfileClick}
-          className="flex items-center gap-3 pl-2 pr-3 py-1.5 rounded-full hover:bg-slate-50 cursor-pointer border border-transparent hover:border-slate-200 transition-all select-none"
-        >
-          <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-primary-700 to-primary-500 flex items-center justify-center text-white font-bold text-sm shadow-xs ring-2 ring-primary-100">
-            {settings.userName.charAt(0) || 'S'}
+        {/* User Profile Pill & Dropdown */}
+        <div className="relative" ref={userMenuRef}>
+          <div
+            onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+            className="flex items-center gap-2.5 pl-2 pr-3 py-1.5 rounded-full hover:bg-slate-50 cursor-pointer border border-transparent hover:border-slate-200 transition-all select-none"
+          >
+            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-primary-700 to-primary-500 flex items-center justify-center text-white font-bold text-sm shadow-xs ring-2 ring-primary-100">
+              {settings.userName.charAt(0) || 'S'}
+            </div>
+            <div className="hidden sm:block text-left">
+              <p className="text-xs font-bold text-slate-800 leading-tight flex items-center gap-1">
+                {settings.userName}
+                <UserCheck className="w-3.5 h-3.5 text-primary-600 inline" />
+              </p>
+              <p className="text-[11px] text-slate-500 leading-tight">{settings.userRole}</p>
+            </div>
+            <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} />
           </div>
-          <div className="hidden sm:block text-left">
-            <p className="text-xs font-bold text-slate-800 leading-tight flex items-center gap-1">
-              {settings.userName}
-              <UserCheck className="w-3.5 h-3.5 text-primary-600 inline" />
-            </p>
-            <p className="text-[11px] text-slate-500 leading-tight">{settings.userRole}</p>
-          </div>
+
+          {/* User Dropdown Menu */}
+          {isUserMenuOpen && (
+            <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-200/80 py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+              <div className="px-4 py-2.5 border-b border-slate-100">
+                <p className="text-xs font-bold text-slate-900">{settings.userName}</p>
+                <p className="text-[11px] text-slate-500 truncate">{settings.userEmail || 'sanjay.cybersec@secureshield.io'}</p>
+                <span className="inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-primary-50 text-primary-700">
+                  {settings.userRole}
+                </span>
+              </div>
+
+              <div className="py-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsUserMenuOpen(false);
+                    onProfileClick?.();
+                  }}
+                  className="w-full px-4 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-primary-600 flex items-center gap-2.5 transition-colors cursor-pointer"
+                >
+                  <UserCheck className="w-4 h-4 text-slate-400" />
+                  <span>Profile & Settings</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsUserMenuOpen(false);
+                    setIsDbModalOpen(true);
+                  }}
+                  className="w-full px-4 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-primary-600 flex items-center gap-2.5 transition-colors cursor-pointer"
+                >
+                  <Database className="w-4 h-4 text-slate-400" />
+                  <span>Cloud Database</span>
+                </button>
+              </div>
+
+              {onLogout && (
+                <div className="pt-1 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsUserMenuOpen(false);
+                      onLogout();
+                    }}
+                    className="w-full px-4 py-2 text-left text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2.5 transition-colors cursor-pointer"
+                  >
+                    <LogOut className="w-4 h-4 text-rose-500" />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

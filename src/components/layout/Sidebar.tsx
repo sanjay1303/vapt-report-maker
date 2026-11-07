@@ -8,6 +8,7 @@ import {
   LayoutTemplate,
   Settings,
   ShieldCheck,
+  LogOut,
 } from 'lucide-react';
 
 export type NavTab =
@@ -25,9 +26,10 @@ interface SidebarProps {
   currentTab: NavTab;
   onTabChange: (tab: NavTab) => void;
   openReportsCount?: number;
+  onLogout?: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange, onLogout }) => {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'projects', label: 'Projects', icon: FolderKanban },
@@ -93,14 +95,26 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange }) => 
 
       {/* Footer Profile or Version info */}
       <div className="p-4 border-t border-[#292243] bg-[#171226]/80">
-        <div className="flex items-center gap-3 p-2 rounded-xl bg-[#201836] border border-[#2e234c]">
-          <div className="w-8 h-8 rounded-lg bg-primary-600/30 border border-primary-500/40 flex items-center justify-center text-primary-300 text-xs font-bold">
-            v2.4
+        <div className="flex items-center justify-between p-2 rounded-xl bg-[#201836] border border-[#2e234c]">
+          <div className="flex items-center gap-2.5 overflow-hidden">
+            <div className="w-8 h-8 rounded-lg bg-primary-600/30 border border-primary-500/40 flex items-center justify-center text-primary-300 text-xs font-bold shrink-0">
+              v2.4
+            </div>
+            <div className="overflow-hidden">
+              <p className="text-xs font-semibold text-white truncate">Enterprise Edition</p>
+              <p className="text-[10px] text-slate-400 truncate">Sanjay • Eng</p>
+            </div>
           </div>
-          <div className="overflow-hidden">
-            <p className="text-xs font-semibold text-white truncate">Enterprise Edition</p>
-            <p className="text-[10px] text-slate-400 truncate">ISO 27001 & OWASP</p>
-          </div>
+          {onLogout && (
+            <button
+              type="button"
+              onClick={onLogout}
+              className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer shrink-0"
+              title="Sign Out"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
     </aside>
