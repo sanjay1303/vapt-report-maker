@@ -73,12 +73,6 @@ export function App() {
     window.location.reload();
   };
 
-  const handleLoadSampleData = () => {
-    storage.loadSampleData();
-    setCurrentTab('dashboard');
-    window.location.reload();
-  };
-
   const handleResetData = () => {
     storage.clearAllData();
     setSettings(storage.getSettings());
@@ -241,7 +235,6 @@ export function App() {
               settings={settings}
               onUpdateSettings={setSettings}
               onClearAllData={handleClearAllData}
-              onLoadSampleData={handleLoadSampleData}
               onResetData={handleResetData}
               initialTab={navParams?.tab}
             />

@@ -1,6 +1,5 @@
 import { Project, Module, Vulnerability, Report, Template, Activity, Settings, VulnStatus, StatusNote } from '../types';
 import { cloudDb } from './cloudDb';
-import * as sampleData from './sampleData';
 
 const STORAGE_KEYS = {
   PROJECTS: 'vapt_projects_v1',
@@ -859,16 +858,7 @@ class StorageService {
     this.setItem(STORAGE_KEYS.ACTIVITIES, []);
   }
 
-  // Restore sample demo dataset if needed
-  loadSampleData(): void {
-    this.saveProjects(sampleData.initialProjects);
-    this.saveModules(sampleData.initialModules);
-    this.saveGlobalVulnerabilities(sampleData.initialGlobalVulnerabilities);
-    this.saveReports(sampleData.initialReports);
-    this.setItem(STORAGE_KEYS.ACTIVITIES, sampleData.initialActivities);
-  }
-
-  // Reset to initial demo data
+  // Reset to initial empty data
   resetAllData(): void {
     this.clearAllData();
   }

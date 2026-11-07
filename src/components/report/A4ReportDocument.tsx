@@ -34,10 +34,10 @@ export const A4ReportDocument: React.FC<A4ReportDocumentProps> = ({
 
   const totalVulns = vulns.length;
   const clientName = report.client || 'Client';
-  const reportTitle = report.name || `${report.projectName || 'filumart-qa'} – ${report.moduleName || 'seller Module'} VAPT Assessment`;
-  const appName = report.applicationName || `${report.projectName || 'filumart-qa'} Platform`;
-  const appUrl = report.applicationUrl || 'https://qa-seller.filumart.com/login';
-  const env = report.environment || 'QA';
+  const reportTitle = report.name || `${report.projectName || 'Project'} – ${report.moduleName || 'Scope'} Assessment`;
+  const appName = report.applicationName || `${report.projectName || 'Target'} Platform`;
+  const appUrl = report.applicationUrl || '—';
+  const env = report.environment || 'Production';
   const author = report.preparedBy || 'Sanjay - Cyber Security Engineer';
 
   const getSeverityBadgeClasses = (sev: string) => {

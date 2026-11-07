@@ -81,7 +81,7 @@ export const CreateReportPage: React.FC<CreateReportPageProps> = ({
   );
   const [hosting, setHosting] = useState<string>(existingReport?.hosting || 'AWS Cloud (ap-south-1 Mumbai)');
   const [database, setDatabase] = useState<string>(existingReport?.database || 'PostgreSQL 15 / MongoDB');
-  const [templateId, setTemplateId] = useState<string>(existingReport?.templateId || initialTemplateId || 'tmpl-filumart');
+  const [templateId, setTemplateId] = useState<string>(existingReport?.templateId || initialTemplateId || 'tmpl-comprehensive');
   const [executiveSummary, setExecutiveSummary] = useState<string>(
     existingReport?.executiveSummary ||
       `A comprehensive Vulnerability Assessment and Penetration Testing (VAPT) exercise was conducted against the target environment. The primary objective was to assess the defense posture of the application, identify exploitable security vulnerabilities, and evaluate compliance with OWASP Top 10 guidelines.\n\nThe findings identified during the assessment tenure should be prioritized according to their CVSS severity scores to remediate the identified risks effectively.`
@@ -1051,7 +1051,7 @@ export const CreateReportPage: React.FC<CreateReportPageProps> = ({
             <input
               type="url"
               required
-              placeholder="https://qa-seller.filumart.com/login"
+              placeholder="https://app.example.com"
               value={newModuleUrl}
               onChange={(e) => setNewModuleUrl(e.target.value)}
               className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600"

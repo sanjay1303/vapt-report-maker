@@ -553,7 +553,7 @@ export const ProjectDetailsPage: React.FC<ProjectDetailsPageProps> = ({
             <input
               type="url"
               required
-              placeholder="https://qa-seller.filumart.com/login"
+              placeholder="https://app.example.com"
               value={moduleForm.applicationUrl}
               onChange={(e) => setModuleForm({ ...moduleForm, applicationUrl: e.target.value })}
               className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600"
