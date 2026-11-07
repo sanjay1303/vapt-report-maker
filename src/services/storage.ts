@@ -841,7 +841,7 @@ class StorageService {
 }
 
 // Execute immediate data wipe requested by user
-const WIPE_FLAG_KEY = 'vapt_clean_fresh_start_20261107_v2';
+const WIPE_FLAG_KEY = 'vapt_clean_fresh_start_20261107_v3';
 try {
   if (typeof window !== 'undefined' && window.localStorage) {
     localStorage.removeItem('vapt_templates_v1');
@@ -852,6 +852,7 @@ try {
       localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify([]));
       localStorage.setItem(STORAGE_KEYS.ACTIVITIES, JSON.stringify([]));
       localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(defaultSettings));
+      localStorage.setItem(STORAGE_KEYS.TEMPLATES, JSON.stringify(initialTemplates));
       localStorage.setItem(WIPE_FLAG_KEY, 'cleared');
     }
   }

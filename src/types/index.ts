@@ -91,7 +91,7 @@ export interface Project {
 }
 
 export interface Report {
-  id: string; // e.g. FILUMART-VAPT-001
+  id: string; // e.g. VAPT-REP-001
   name: string;
   projectId: string;
   projectName: string;

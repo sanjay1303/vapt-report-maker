@@ -311,10 +311,10 @@ export const VulnerabilitiesPage: React.FC<VulnerabilitiesPageProps> = ({
                         </div>
                       </td>
                       <td className="py-3.5 px-4 text-slate-600 font-medium">
-                        {v.projectName || 'Filumart'}
+                        {v.projectName || '—'}
                       </td>
                       <td className="py-3.5 px-4 text-slate-600">
-                        {v.moduleName || 'Authentication'}
+                        {v.moduleName || '—'}
                       </td>
                       <td className="py-3.5 px-4 text-center">
                         <SeverityBadge severity={v.severity} size="sm" />

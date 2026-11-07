@@ -341,7 +341,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ onNavigate }) => {
             <input
               type="text"
               required
-              placeholder="e.g. Filumart"
+              placeholder="e.g. Acme Core Platform / Customer Portal"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600"
@@ -355,7 +355,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ onNavigate }) => {
             <input
               type="text"
               required
-              placeholder="e.g. Madanic Impex Pvt Ltd."
+              placeholder="e.g. Acme Corporation"
               value={formData.client}
               onChange={(e) => setFormData({ ...formData, client: e.target.value })}
               className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600"

@@ -72,15 +72,17 @@ export const CreateReportPage: React.FC<CreateReportPageProps> = ({
   const [environment, setEnvironment] = useState<string>(existingReport?.environment || defaultProj?.environment || 'Production');
   const assessmentDate = existingReport?.assessmentDate || new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   const reportVersion = existingReport?.reportVersion || 'v1.0';
-  const [preparedBy, setPreparedBy] = useState<string>(existingReport?.preparedBy || 'Sanjay - Cyber Security Engineer');
+  const settings = storage.getSettings();
+  const defaultPreparedBy = `${settings.userName || 'Security Analyst'} - ${settings.userRole || 'Cyber Security Engineer'}`;
+  const [preparedBy, setPreparedBy] = useState<string>(existingReport?.preparedBy || defaultPreparedBy);
   const [classification, setClassification] = useState<ReportClassification>(
     existingReport?.classification || 'Confidential'
   );
   const [assessmentType, setAssessmentType] = useState<string>(
     existingReport?.assessmentType || 'Web Application Security Assessment'
   );
-  const [hosting, setHosting] = useState<string>(existingReport?.hosting || 'AWS Cloud (ap-south-1 Mumbai)');
-  const [database, setDatabase] = useState<string>(existingReport?.database || 'PostgreSQL 15 / MongoDB');
+  const [hosting, setHosting] = useState<string>(existingReport?.hosting || 'Cloud Hosted Infrastructure');
+  const [database, setDatabase] = useState<string>(existingReport?.database || 'Production Database');
   const [templateId, setTemplateId] = useState<string>(existingReport?.templateId || initialTemplateId || 'tmpl-vapt-standard');
   const [executiveSummary, setExecutiveSummary] = useState<string>(
     existingReport?.executiveSummary ||
@@ -537,7 +539,7 @@ export const CreateReportPage: React.FC<CreateReportPageProps> = ({
                     setStep1Errors((prev) => ({ ...prev, name: undefined }));
                   }
                 }}
-                placeholder="e.g. Filumart - Buyer Module Security Assessment"
+                placeholder="e.g. Web Application Penetration Test Report"
                 className={`w-full px-3.5 py-2.5 text-sm bg-white border rounded-lg focus:outline-hidden focus:ring-2 font-semibold ${
                   step1Errors.name
                     ? 'border-red-400 ring-2 ring-red-100 focus:border-red-500'
