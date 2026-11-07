@@ -103,7 +103,7 @@ export function App() {
           subtitle: 'Official assessment document preview and export',
           breadcrumbs: [
             { label: 'Reports', onClick: () => handleNavigate('reports') },
-            { label: navParams.reportId || 'FILUMART-VAPT-001' },
+            { label: navParams.reportId || 'Report Preview' },
           ],
         };
       case 'templates':
@@ -159,7 +159,7 @@ export function App() {
 
           {currentTab === 'project-details' && (
             <ProjectDetailsPage
-              projectId={navParams.projectId || 'prj-001'}
+              projectId={navParams.projectId || ''}
               onNavigate={handleNavigate}
             />
           )}
@@ -187,7 +187,7 @@ export function App() {
 
           {currentTab === 'detailed-report' && (
             <DetailedReportPage
-              reportId={navParams.reportId || 'FILUMART-VAPT-001'}
+              reportId={navParams.reportId || ''}
               onNavigate={handleNavigate}
             />
           )}
