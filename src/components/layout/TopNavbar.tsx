@@ -9,16 +9,11 @@ import {
   ShieldAlert,
   X,
   ExternalLink,
-  Database,
-  Cloud,
   LogOut,
   ChevronDown,
-  AlertTriangle,
-  RefreshCw,
 } from 'lucide-react';
 import { Settings } from '../../types';
 import { storage } from '../../services/storage';
-import { cloudDb, CloudDbConfig } from '../../services/cloudDb';
 import { NavTab } from './Sidebar';
 
 interface TopNavbarProps {
@@ -46,13 +41,8 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
 }) => {
   const [isOpenResults, setIsOpenResults] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [cloudConfig, setCloudConfig] = useState<CloudDbConfig>(() => cloudDb.getConfig());
   const searchRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    return cloudDb.subscribe(setCloudConfig);
-  }, []);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -268,49 +258,6 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
           )}
         </div>
 
-        {/* Cloud Database Pill */}
-        <button
-          type="button"
-          onClick={() => onNavigate?.('settings', { tab: 'data' })}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
-            cloudConfig.status === 'connected'
-              ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100 shadow-2xs'
-              : cloudConfig.status === 'needs_grant'
-              ? 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100 shadow-2xs'
-              : cloudConfig.status === 'connecting'
-              ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
-              : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-          }`}
-          title={cloudConfig.statusMessage}
-        >
-          {cloudConfig.status === 'connected' ? (
-            <>
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <Cloud className="w-3.5 h-3.5 text-emerald-600" />
-              <span className="hidden sm:inline">Cloud DB: Connected</span>
-            </>
-          ) : cloudConfig.status === 'needs_grant' ? (
-            <>
-              <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
-              <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
-              <span className="hidden sm:inline">Supabase: Permission Needed</span>
-              <span className="text-[10px] bg-amber-200 text-amber-900 px-1.5 py-0.5 rounded-full font-bold">
-                Fix SQL
-              </span>
-            </>
-          ) : cloudConfig.status === 'connecting' ? (
-            <>
-              <RefreshCw className="w-3.5 h-3.5 text-blue-600 animate-spin" />
-              <span className="hidden sm:inline text-blue-700">Connecting DB...</span>
-            </>
-          ) : (
-            <>
-              <Database className="w-3.5 h-3.5 text-slate-500" />
-              <span className="hidden sm:inline text-slate-600">Local Mode</span>
-            </>
-          )}
-        </button>
-
         {/* Notifications */}
         <button
           className="relative p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
@@ -361,18 +308,6 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
                 >
                   <UserCheck className="w-4 h-4 text-slate-400" />
                   <span>Profile & Settings</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsUserMenuOpen(false);
-                    onNavigate?.('settings', { tab: 'data' });
-                  }}
-                  className="w-full px-4 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-primary-600 flex items-center gap-2.5 transition-colors cursor-pointer"
-                >
-                  <Database className="w-4 h-4 text-slate-400" />
-                  <span>Cloud Database</span>
                 </button>
               </div>
 
