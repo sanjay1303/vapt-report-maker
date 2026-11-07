@@ -17,7 +17,6 @@ import {
 import { Settings } from '../../types';
 import { storage } from '../../services/storage';
 import { cloudDb, CloudDbConfig } from '../../services/cloudDb';
-import { CloudDatabaseModal } from '../database/CloudDatabaseModal';
 import { NavTab } from './Sidebar';
 
 interface TopNavbarProps {
@@ -44,7 +43,6 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
   onLogout,
 }) => {
   const [isOpenResults, setIsOpenResults] = useState(false);
-  const [isDbModalOpen, setIsDbModalOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [cloudConfig, setCloudConfig] = useState<CloudDbConfig>(() => cloudDb.getConfig());
   const searchRef = useRef<HTMLDivElement>(null);
@@ -271,7 +269,7 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
         {/* Cloud Database Pill */}
         <button
           type="button"
-          onClick={() => setIsDbModalOpen(true)}
+          onClick={() => onNavigate?.('settings', { tab: 'database' })}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
             cloudConfig.isConnected
               ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100 shadow-2xs'
@@ -352,7 +350,7 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
                   type="button"
                   onClick={() => {
                     setIsUserMenuOpen(false);
-                    setIsDbModalOpen(true);
+                    onNavigate?.('settings', { tab: 'database' });
                   }}
                   className="w-full px-4 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-primary-600 flex items-center gap-2.5 transition-colors cursor-pointer"
                 >
@@ -380,12 +378,6 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
           )}
         </div>
       </div>
-
-      {/* Cloud Database Config Modal */}
-      <CloudDatabaseModal
-        isOpen={isDbModalOpen}
-        onClose={() => setIsDbModalOpen(false)}
-      />
     </header>
   );
 };
