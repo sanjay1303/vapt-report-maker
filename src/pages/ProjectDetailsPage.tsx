@@ -10,7 +10,7 @@ import {
   Search,
   ExternalLink,
 } from 'lucide-react';
-import { Project, Module } from '../types';
+import { Project, Module, ProjectEnvironment } from '../types';
 import { storage } from '../services/storage';
 import { Modal } from '../components/common/Modal';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
@@ -41,6 +41,8 @@ export const ProjectDetailsPage: React.FC<ProjectDetailsPageProps> = ({
 
   const [moduleForm, setModuleForm] = useState({
     name: '',
+    applicationUrl: '',
+    environment: 'QA' as ProjectEnvironment,
     description: '',
   });
 
@@ -92,13 +94,23 @@ export const ProjectDetailsPage: React.FC<ProjectDetailsPageProps> = ({
 
   const handleOpenAddModule = () => {
     setEditingModule(null);
-    setModuleForm({ name: '', description: '' });
+    setModuleForm({
+      name: '',
+      applicationUrl: '',
+      environment: 'QA',
+      description: '',
+    });
     setIsModuleModalOpen(true);
   };
 
   const handleOpenEditModule = (mod: Module) => {
     setEditingModule(mod);
-    setModuleForm({ name: mod.name, description: mod.description });
+    setModuleForm({
+      name: mod.name,
+      applicationUrl: mod.applicationUrl || '',
+      environment: mod.environment || 'QA',
+      description: mod.description,
+    });
     setIsModuleModalOpen(true);
   };
 
@@ -108,14 +120,18 @@ export const ProjectDetailsPage: React.FC<ProjectDetailsPageProps> = ({
 
     if (editingModule) {
       storage.updateModule(editingModule.id, {
-        name: moduleForm.name,
-        description: moduleForm.description,
+        name: moduleForm.name.trim(),
+        applicationUrl: moduleForm.applicationUrl.trim(),
+        environment: moduleForm.environment,
+        description: moduleForm.description.trim(),
       });
     } else {
       storage.addModule({
         projectId: project.id,
-        name: moduleForm.name,
-        description: moduleForm.description,
+        name: moduleForm.name.trim(),
+        applicationUrl: moduleForm.applicationUrl.trim(),
+        environment: moduleForm.environment,
+        description: moduleForm.description.trim(),
       });
     }
     setIsModuleModalOpen(false);
@@ -133,6 +149,8 @@ export const ProjectDetailsPage: React.FC<ProjectDetailsPageProps> = ({
   const filteredModules = modules.filter(
     (m) =>
       m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (m.applicationUrl && m.applicationUrl.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (m.environment && m.environment.toLowerCase().includes(searchQuery.toLowerCase())) ||
       m.description.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -293,6 +311,8 @@ export const ProjectDetailsPage: React.FC<ProjectDetailsPageProps> = ({
                   <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider">
                     <th className="py-3 px-4 w-12 text-center">#</th>
                     <th className="py-3 px-4">Module Name</th>
+                    <th className="py-3 px-4">Target Application URL</th>
+                    <th className="py-3 px-4">Environment</th>
                     <th className="py-3 px-4">Description</th>
                     <th className="py-3 px-4 text-center">Total</th>
                     <th className="py-3 px-4 text-center text-red-700">Critical</th>
@@ -306,7 +326,7 @@ export const ProjectDetailsPage: React.FC<ProjectDetailsPageProps> = ({
                 <tbody className="divide-y divide-slate-100">
                   {filteredModules.length === 0 ? (
                     <tr>
-                      <td colSpan={10} className="py-8 text-center text-slate-400">
+                      <td colSpan={12} className="py-8 text-center text-slate-400">
                         No modules created for this project yet.
                       </td>
                     </tr>
@@ -325,11 +345,43 @@ export const ProjectDetailsPage: React.FC<ProjectDetailsPageProps> = ({
                         <td className="py-3.5 px-4 text-center text-slate-400 font-medium">
                           {index + 1}
                         </td>
-                        <td className="py-3.5 px-4 font-bold text-slate-900 group-hover:text-primary-600 transition-colors">
+                        <td className="py-3.5 px-4 font-bold text-slate-900 group-hover:text-primary-600 transition-colors whitespace-nowrap">
                           {m.name}
                         </td>
+                        <td className="py-3.5 px-4 font-mono text-[11px] text-slate-600 max-w-[200px] truncate">
+                          {m.applicationUrl ? (
+                            <a
+                              href={m.applicationUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-primary-600 hover:underline flex items-center gap-1.5"
+                              title={m.applicationUrl}
+                            >
+                              <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                              <span className="truncate">{m.applicationUrl}</span>
+                            </a>
+                          ) : (
+                            <span className="text-slate-400 italic">Not set</span>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span
+                            className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                              m.environment === 'Production'
+                                ? 'bg-red-50 text-red-700 border-red-200'
+                                : m.environment === 'Staging'
+                                ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                : m.environment === 'Dev'
+                                ? 'bg-purple-50 text-purple-700 border-purple-200'
+                                : 'bg-blue-50 text-blue-700 border-blue-200'
+                            }`}
+                          >
+                            {m.environment || 'QA'}
+                          </span>
+                        </td>
                         <td className="py-3.5 px-4 text-slate-600 max-w-xs truncate">
-                          {m.description}
+                          {m.description || '—'}
                         </td>
                         <td className="py-3.5 px-4 text-center font-bold text-slate-800">
                           <span className="px-2 py-0.5 rounded-full bg-slate-100">
@@ -492,6 +544,37 @@ export const ProjectDetailsPage: React.FC<ProjectDetailsPageProps> = ({
               onChange={(e) => setModuleForm({ ...moduleForm, name: e.target.value })}
               className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600"
             />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+              Target Application URL
+            </label>
+            <input
+              type="url"
+              placeholder="https://qa-seller.filumart.com/login"
+              value={moduleForm.applicationUrl}
+              onChange={(e) => setModuleForm({ ...moduleForm, applicationUrl: e.target.value })}
+              className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+              Environment
+            </label>
+            <select
+              value={moduleForm.environment}
+              onChange={(e) =>
+                setModuleForm({ ...moduleForm, environment: e.target.value as ProjectEnvironment })
+              }
+              className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary-500/20"
+            >
+              <option value="Production">Production</option>
+              <option value="QA">QA</option>
+              <option value="Dev">Dev</option>
+              <option value="Staging">Staging</option>
+            </select>
           </div>
 
           <div>

@@ -39,8 +39,6 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ onNavigate }) => {
   const [formData, setFormData] = useState({
     name: '',
     client: '',
-    applicationUrl: '',
-    environment: 'Production' as ProjectEnvironment,
     status: 'In Progress' as ProjectStatus,
     description: '',
   });
@@ -51,14 +49,24 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ onNavigate }) => {
 
   // Filtered and sorted projects
   const filteredProjects = projects.filter((p) => {
+    const pModules = storage.getModules(p.id);
+    const modEnvs = pModules.map((m) => m.environment).filter(Boolean);
+    const allEnvs = [p.environment, ...modEnvs].filter(Boolean);
+
     const matchesSearch =
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.client.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.applicationUrl.toLowerCase().includes(searchQuery.toLowerCase());
+      (p.applicationUrl && p.applicationUrl.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      pModules.some(
+        (m) =>
+          (m.name && m.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+          (m.applicationUrl && m.applicationUrl.toLowerCase().includes(searchQuery.toLowerCase()))
+      );
 
     const matchesEnv =
-      envFilter === 'All Environments' || p.environment === envFilter;
+      envFilter === 'All Environments' ||
+      allEnvs.includes(envFilter as ProjectEnvironment);
 
     const matchesStatus =
       statusFilter === 'All Status' || p.status === statusFilter;
@@ -76,8 +84,6 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ onNavigate }) => {
     setFormData({
       name: '',
       client: '',
-      applicationUrl: '',
-      environment: 'Production',
       status: 'In Progress',
       description: '',
     });
@@ -89,8 +95,6 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ onNavigate }) => {
     setFormData({
       name: project.name,
       client: project.client,
-      applicationUrl: project.applicationUrl,
-      environment: project.environment,
       status: project.status,
       description: project.description,
     });
@@ -235,6 +239,9 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ onNavigate }) => {
               ) : (
                 paginatedProjects.map((p, index) => {
                   const rowNumber = (currentPage - 1) * itemsPerPage + index + 1;
+                  const pModules = storage.getModules(p.id);
+                  const envList = Array.from(new Set(pModules.map((m) => m.environment).filter(Boolean)));
+                  const displayEnv = envList.length > 0 ? envList.join(', ') : (p.environment || '—');
                   return (
                     <tr
                       key={p.id}
@@ -251,7 +258,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ onNavigate }) => {
                         {p.name}
                       </td>
                       <td className="py-3.5 px-4 text-slate-600">{p.client}</td>
-                      <td className="py-3.5 px-4 font-medium text-slate-700">{p.environment}</td>
+                      <td className="py-3.5 px-4 font-medium text-slate-700">{displayEnv}</td>
                       <td className="py-3.5 px-4 text-center font-bold text-slate-800">
                         {p.modulesCount}
                       </td>
@@ -349,53 +356,20 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ onNavigate }) => {
 
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-              Application URL
+              Status
             </label>
-            <input
-              type="url"
-              placeholder="https://filumart.com"
-              value={formData.applicationUrl}
-              onChange={(e) => setFormData({ ...formData, applicationUrl: e.target.value })}
+            <select
+              value={formData.status}
+              onChange={(e) =>
+                setFormData({ ...formData, status: e.target.value as ProjectStatus })
+              }
               className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                Environment
-              </label>
-              <select
-                value={formData.environment}
-                onChange={(e) =>
-                  setFormData({ ...formData, environment: e.target.value as ProjectEnvironment })
-                }
-                className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg"
-              >
-                <option value="Production">Production</option>
-                <option value="QA">QA</option>
-                <option value="Dev">Dev</option>
-                <option value="Staging">Staging</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                Status
-              </label>
-              <select
-                value={formData.status}
-                onChange={(e) =>
-                  setFormData({ ...formData, status: e.target.value as ProjectStatus })
-                }
-                className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg"
-              >
-                <option value="In Progress">In Progress</option>
-                <option value="Completed">Completed</option>
-                <option value="Planning">Planning</option>
-                <option value="On Hold">On Hold</option>
-              </select>
-            </div>
+            >
+              <option value="In Progress">In Progress</option>
+              <option value="Completed">Completed</option>
+              <option value="Planning">Planning</option>
+              <option value="On Hold">On Hold</option>
+            </select>
           </div>
 
           <div>

@@ -18,6 +18,7 @@ import {
 import {
   Project,
   Module,
+  ProjectEnvironment,
   Report,
   Vulnerability,
   ReportClassification,
@@ -92,6 +93,8 @@ export const CreateReportPage: React.FC<CreateReportPageProps> = ({
   // Inline module creation modal
   const [isAddModuleOpen, setIsAddModuleOpen] = useState(false);
   const [newModuleName, setNewModuleName] = useState('');
+  const [newModuleUrl, setNewModuleUrl] = useState('');
+  const [newModuleEnvironment, setNewModuleEnvironment] = useState<ProjectEnvironment>('QA');
   const [newModuleDescription, setNewModuleDescription] = useState('');
 
   // Step 2: Report Vulnerabilities
@@ -138,8 +141,16 @@ export const CreateReportPage: React.FC<CreateReportPageProps> = ({
 
     const mod = allModules.find((m) => m.id === modId);
     const proj = projects.find((p) => p.id === selectedProjectId);
-    if (mod && proj) {
-      setReportName(`${proj.name} - ${mod.name} Module VAPT Assessment`);
+    if (mod) {
+      if (mod.applicationUrl) {
+        setApplicationUrl(mod.applicationUrl);
+      }
+      if (mod.environment) {
+        setEnvironment(mod.environment);
+      }
+      if (proj) {
+        setReportName(`${proj.name} - ${mod.name} Module VAPT Assessment`);
+      }
     }
   };
 
@@ -149,11 +160,19 @@ export const CreateReportPage: React.FC<CreateReportPageProps> = ({
     const createdMod = storage.addModule({
       projectId: selectedProjectId,
       name: newModuleName.trim(),
+      applicationUrl: newModuleUrl.trim(),
+      environment: newModuleEnvironment,
       description: newModuleDescription.trim(),
     });
     const updatedMods = storage.getModules();
     setAllModules(updatedMods);
     setSelectedModuleId(createdMod.id);
+    if (createdMod.applicationUrl) {
+      setApplicationUrl(createdMod.applicationUrl);
+    }
+    if (createdMod.environment) {
+      setEnvironment(createdMod.environment);
+    }
     setStep1Errors((prev) => ({ ...prev, module: undefined }));
 
     const proj = projects.find((p) => p.id === selectedProjectId);
@@ -162,6 +181,8 @@ export const CreateReportPage: React.FC<CreateReportPageProps> = ({
     }
 
     setNewModuleName('');
+    setNewModuleUrl('');
+    setNewModuleEnvironment('QA');
     setNewModuleDescription('');
     setIsAddModuleOpen(false);
   };
@@ -1021,6 +1042,35 @@ export const CreateReportPage: React.FC<CreateReportPageProps> = ({
               onChange={(e) => setNewModuleName(e.target.value)}
               className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600"
             />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+              Target Application URL
+            </label>
+            <input
+              type="url"
+              placeholder="https://qa-seller.filumart.com/login"
+              value={newModuleUrl}
+              onChange={(e) => setNewModuleUrl(e.target.value)}
+              className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+              Environment
+            </label>
+            <select
+              value={newModuleEnvironment}
+              onChange={(e) => setNewModuleEnvironment(e.target.value as ProjectEnvironment)}
+              className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary-500/20"
+            >
+              <option value="Production">Production</option>
+              <option value="QA">QA</option>
+              <option value="Dev">Dev</option>
+              <option value="Staging">Staging</option>
+            </select>
           </div>
 
           <div>

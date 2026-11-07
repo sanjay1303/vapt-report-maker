@@ -66,6 +66,8 @@ export interface Module {
   projectId: string;
   name: string;
   description: string;
+  applicationUrl?: string;
+  environment?: ProjectEnvironment;
   vulnsCount: number;
   criticalCount: number;
   highCount: number;
@@ -79,8 +81,8 @@ export interface Project {
   code: string; // e.g. PRJ-001
   name: string;
   client: string;
-  applicationUrl: string;
-  environment: ProjectEnvironment;
+  applicationUrl?: string;
+  environment?: ProjectEnvironment;
   status: ProjectStatus;
   description: string;
   modulesCount: number;
