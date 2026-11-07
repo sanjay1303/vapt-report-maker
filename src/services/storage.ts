@@ -6,7 +6,7 @@ const STORAGE_KEYS = {
   MODULES: 'vapt_modules_v1',
   VULNERABILITIES: 'vapt_vulnerabilities_v1',
   REPORTS: 'vapt_reports_v1',
-  TEMPLATES: 'vapt_templates_v1',
+  TEMPLATES: 'vapt_templates_v2',
   ACTIVITIES: 'vapt_activities_v1',
   SETTINGS: 'vapt_settings_v1',
 };
@@ -32,53 +32,14 @@ export const defaultSettings: Settings = {
   confidentialityNotice: 'This document contains confidential and proprietary information intended solely for the use of the client organization. Any unauthorized review, use, disclosure, or distribution is strictly prohibited.',
 };
 
-// Initial Templates
+// Initial Templates - Single official Standard VAPT Report Template
 export const initialTemplates: Template[] = [
   {
-    id: 'tmpl-comprehensive',
-    name: 'Comprehensive VAPT Assessment Report',
-    description: 'Standard VAPT report template focused on ecommerce and corporate web platforms with document information, executive summary, summary table, and detailed findings.',
+    id: 'tmpl-vapt-standard',
+    name: 'Standard VAPT Assessment Report',
+    description: 'Official penetration testing assessment template adhering to OWASP Top 10 standards with Document Information, Executive Summary, Summary of Findings, and Detailed Vulnerability Findings.',
     isDefault: true,
     category: 'Full Assessment',
-    sections: {
-      documentInfo: true,
-      executiveSummary: true,
-      summaryOfFindings: true,
-      detailedFindings: true,
-    },
-  },
-  {
-    id: 'tmpl-standard',
-    name: 'Standard VAPT Report',
-    description: 'Generic VAPT report template for web and API applications adhering to OWASP Top 10 assessment standards.',
-    isDefault: false,
-    category: 'General',
-    sections: {
-      documentInfo: true,
-      executiveSummary: true,
-      summaryOfFindings: true,
-      detailedFindings: true,
-    },
-  },
-  {
-    id: 'tmpl-webapp',
-    name: 'Web Application Security Assessment',
-    description: 'Focused on web application security testing including business logic flaw identification and client-side validations.',
-    isDefault: false,
-    category: 'Web Security',
-    sections: {
-      documentInfo: true,
-      executiveSummary: true,
-      summaryOfFindings: true,
-      detailedFindings: true,
-    },
-  },
-  {
-    id: 'tmpl-api',
-    name: 'API Security Assessment',
-    description: 'Detailed API security testing report template focusing on REST/GraphQL endpoints, authorization controls, and rate limits.',
-    isDefault: false,
-    category: 'API Security',
     sections: {
       documentInfo: true,
       executiveSummary: true,
@@ -778,7 +739,21 @@ class StorageService {
 
   // Templates
   getTemplates(): Template[] {
-    return this.getItem<Template[]>(STORAGE_KEYS.TEMPLATES, initialTemplates);
+    const templates = this.getItem<Template[]>(STORAGE_KEYS.TEMPLATES, initialTemplates);
+    const valid = templates.filter(
+      (t) =>
+        t.id !== 'tmpl-filumart' &&
+        t.id !== 'tmpl-comprehensive' &&
+        t.id !== 'tmpl-standard' &&
+        t.id !== 'tmpl-webapp' &&
+        t.id !== 'tmpl-api' &&
+        !t.name.toLowerCase().includes('filumart')
+    );
+    if (valid.length === 0) {
+      this.saveTemplates(initialTemplates);
+      return initialTemplates;
+    }
+    return valid;
   }
 
   saveTemplates(templates: Template[]): void {
@@ -868,6 +843,7 @@ class StorageService {
 const WIPE_FLAG_KEY = 'vapt_clean_fresh_start_20261107_v1';
 try {
   if (typeof window !== 'undefined' && window.localStorage) {
+    localStorage.removeItem('vapt_templates_v1');
     if (localStorage.getItem(WIPE_FLAG_KEY) !== 'cleared') {
       localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify([]));
       localStorage.setItem(STORAGE_KEYS.MODULES, JSON.stringify([]));

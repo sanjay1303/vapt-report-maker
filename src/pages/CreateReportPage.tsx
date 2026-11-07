@@ -81,7 +81,7 @@ export const CreateReportPage: React.FC<CreateReportPageProps> = ({
   );
   const [hosting, setHosting] = useState<string>(existingReport?.hosting || 'AWS Cloud (ap-south-1 Mumbai)');
   const [database, setDatabase] = useState<string>(existingReport?.database || 'PostgreSQL 15 / MongoDB');
-  const [templateId, setTemplateId] = useState<string>(existingReport?.templateId || initialTemplateId || 'tmpl-comprehensive');
+  const [templateId, setTemplateId] = useState<string>(existingReport?.templateId || initialTemplateId || 'tmpl-vapt-standard');
   const [executiveSummary, setExecutiveSummary] = useState<string>(
     existingReport?.executiveSummary ||
       `A comprehensive Vulnerability Assessment and Penetration Testing (VAPT) exercise was conducted against the target environment. The primary objective was to assess the defense posture of the application, identify exploitable security vulnerabilities, and evaluate compliance with OWASP Top 10 guidelines.\n\nThe findings identified during the assessment tenure should be prioritized according to their CVSS severity scores to remediate the identified risks effectively.`
