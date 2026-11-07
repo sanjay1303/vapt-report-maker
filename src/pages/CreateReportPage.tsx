@@ -156,7 +156,7 @@ export const CreateReportPage: React.FC<CreateReportPageProps> = ({
 
   const handleCreateModuleInline = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newModuleName.trim() || !selectedProjectId) return;
+    if (!newModuleName.trim() || !newModuleUrl.trim() || !selectedProjectId) return;
     const createdMod = storage.addModule({
       projectId: selectedProjectId,
       name: newModuleName.trim(),
@@ -1046,10 +1046,11 @@ export const CreateReportPage: React.FC<CreateReportPageProps> = ({
 
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-              Target Application URL
+              Target Application URL <span className="text-red-500">*</span>
             </label>
             <input
               type="url"
+              required
               placeholder="https://qa-seller.filumart.com/login"
               value={newModuleUrl}
               onChange={(e) => setNewModuleUrl(e.target.value)}

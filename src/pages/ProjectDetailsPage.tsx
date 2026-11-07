@@ -116,7 +116,7 @@ export const ProjectDetailsPage: React.FC<ProjectDetailsPageProps> = ({
 
   const handleSaveModule = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!moduleForm.name.trim()) return;
+    if (!moduleForm.name.trim() || !moduleForm.applicationUrl.trim()) return;
 
     if (editingModule) {
       storage.updateModule(editingModule.id, {
@@ -548,10 +548,11 @@ export const ProjectDetailsPage: React.FC<ProjectDetailsPageProps> = ({
 
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-              Target Application URL
+              Target Application URL <span className="text-red-500">*</span>
             </label>
             <input
               type="url"
+              required
               placeholder="https://qa-seller.filumart.com/login"
               value={moduleForm.applicationUrl}
               onChange={(e) => setModuleForm({ ...moduleForm, applicationUrl: e.target.value })}
