@@ -419,6 +419,40 @@ class CloudDbService {
   }
 
   /**
+   * Completely wipe all records in Supabase cloud database
+   */
+  public async clearCloudDatabase(): Promise<void> {
+    if (!this.client) return;
+
+    try {
+      const now = new Date().toISOString();
+      const emptyPayload = [
+        { key: 'projects', value: [], updated_at: now },
+        { key: 'modules', value: [], updated_at: now },
+        { key: 'vulnerabilities', value: [], updated_at: now },
+        { key: 'reports', value: [], updated_at: now },
+      ];
+      await this.client.from('vapt_cloud_store').upsert(emptyPayload, { onConflict: 'key' });
+
+      // Clean relational tables if they exist
+      try {
+        await this.client.from('vapt_projects').delete().neq('id', '___NEVER_MATCH___');
+      } catch {}
+      try {
+        await this.client.from('vapt_reports').delete().neq('id', '___NEVER_MATCH___');
+      } catch {}
+      try {
+        await this.client.from('vapt_vulnerabilities').delete().neq('id', '___NEVER_MATCH___');
+      } catch {}
+
+      this.config.lastSync = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      this.notify();
+    } catch (e) {
+      console.warn('Failed to clear cloud database:', e);
+    }
+  }
+
+  /**
    * SQL Schema setup & permission grant script to run in Supabase SQL editor
    */
   public getSqlSetupScript(): string {

@@ -62,7 +62,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     setTimeout(() => setSavedSuccess(false), 3000);
   };
 
-  const handleClearAll = () => {
+  const handleClearAll = async () => {
     if (
       window.confirm(
         'Are you sure you want to delete ALL data? This will clear all projects, modules, vulnerabilities, and reports. This cannot be undone.'
@@ -71,7 +71,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       if (onClearAllData) {
         onClearAllData();
       } else {
-        storage.clearAllData();
+        await storage.clearAllData();
         window.location.reload();
       }
     }

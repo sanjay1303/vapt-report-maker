@@ -67,14 +67,14 @@ export function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleClearAllData = () => {
-    storage.clearAllData();
+  const handleClearAllData = async () => {
+    await storage.clearAllData();
     setCurrentTab('dashboard');
     window.location.reload();
   };
 
-  const handleResetData = () => {
-    storage.clearAllData();
+  const handleResetData = async () => {
+    await storage.clearAllData();
     setSettings(storage.getSettings());
     setCurrentTab('dashboard');
     window.location.reload();

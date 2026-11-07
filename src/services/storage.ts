@@ -824,23 +824,24 @@ class StorageService {
     return result;
   }
 
-  // Completely wipe all user data (projects, modules, vulns, reports, activities)
-  clearAllData(): void {
+  // Completely wipe all user data (projects, modules, vulns, reports, activities) and cloud database
+  async clearAllData(): Promise<void> {
     this.saveProjects([]);
     this.saveModules([]);
     this.saveGlobalVulnerabilities([]);
     this.saveReports([]);
     this.setItem(STORAGE_KEYS.ACTIVITIES, []);
+    await cloudDb.clearCloudDatabase();
   }
 
   // Reset to initial empty data
-  resetAllData(): void {
-    this.clearAllData();
+  async resetAllData(): Promise<void> {
+    await this.clearAllData();
   }
 }
 
 // Execute immediate data wipe requested by user
-const WIPE_FLAG_KEY = 'vapt_clean_fresh_start_20261107_v1';
+const WIPE_FLAG_KEY = 'vapt_clean_fresh_start_20261107_v2';
 try {
   if (typeof window !== 'undefined' && window.localStorage) {
     localStorage.removeItem('vapt_templates_v1');
