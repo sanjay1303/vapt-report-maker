@@ -45,7 +45,11 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({ onNavigate }) => {
       refreshReports();
     };
     window.addEventListener('vapt_vulnerability_status_changed', handleSync);
-    return () => window.removeEventListener('vapt_vulnerability_status_changed', handleSync);
+    window.addEventListener('vapt_data_changed', handleSync);
+    return () => {
+      window.removeEventListener('vapt_vulnerability_status_changed', handleSync);
+      window.removeEventListener('vapt_data_changed', handleSync);
+    };
   }, []);
 
   const handleDuplicate = (id: string) => {

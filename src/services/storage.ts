@@ -838,11 +838,14 @@ class StorageService {
   async pullFromCloud() {
     const result = await cloudDb.pullCloudToLocal();
     if (result.success && result.data) {
-      if (Array.isArray(result.data.projects)) this.saveProjects(result.data.projects);
-      if (Array.isArray(result.data.modules)) this.saveModules(result.data.modules);
-      if (Array.isArray(result.data.reports)) this.saveReports(result.data.reports);
-      if (Array.isArray(result.data.vulnerabilities)) this.saveGlobalVulnerabilities(result.data.vulnerabilities);
-      if (result.data.settings) this.saveSettings(result.data.settings);
+      if (Array.isArray(result.data.projects)) this.setItem(STORAGE_KEYS.PROJECTS, result.data.projects);
+      if (Array.isArray(result.data.modules)) this.setItem(STORAGE_KEYS.MODULES, result.data.modules);
+      if (Array.isArray(result.data.reports)) this.setItem(STORAGE_KEYS.REPORTS, result.data.reports);
+      if (Array.isArray(result.data.vulnerabilities)) this.setItem(STORAGE_KEYS.VULNERABILITIES, result.data.vulnerabilities);
+      if (result.data.settings) this.setItem(STORAGE_KEYS.SETTINGS, result.data.settings);
+
+      window.dispatchEvent(new Event('vapt_data_changed'));
+      window.dispatchEvent(new Event('vapt_vulnerability_status_changed'));
     }
     return result;
   }

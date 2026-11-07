@@ -13,6 +13,7 @@ import { TemplatesPage } from './pages/TemplatesPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { storage } from './services/storage';
 import { authService } from './services/authService';
+import { cloudDb } from './services/cloudDb';
 import { Settings } from './types';
 
 export function App() {
@@ -35,7 +36,24 @@ export function App() {
       setIsAuthenticated(authService.isAuthenticated());
     };
     window.addEventListener('vapt_auth_changed', handleAuthChange);
-    return () => window.removeEventListener('vapt_auth_changed', handleAuthChange);
+
+    // Auto-hydrate data from Supabase cloud database when connected
+    const unsubscribeCloud = cloudDb.subscribe(async (cfg) => {
+      if (cfg.isConnected) {
+        await storage.pullFromCloud();
+      }
+    });
+
+    const handleDataChanged = () => {
+      setSettings(storage.getSettings());
+    };
+    window.addEventListener('vapt_data_changed', handleDataChanged);
+
+    return () => {
+      window.removeEventListener('vapt_auth_changed', handleAuthChange);
+      window.removeEventListener('vapt_data_changed', handleDataChanged);
+      unsubscribeCloud();
+    };
   }, []);
 
   const handleLogout = () => {

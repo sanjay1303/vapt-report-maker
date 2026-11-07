@@ -65,7 +65,11 @@ export const VulnerabilitiesPage: React.FC<VulnerabilitiesPageProps> = ({
       refreshVulns();
     };
     window.addEventListener('vapt_vulnerability_status_changed', handleStatusSync);
-    return () => window.removeEventListener('vapt_vulnerability_status_changed', handleStatusSync);
+    window.addEventListener('vapt_data_changed', handleStatusSync);
+    return () => {
+      window.removeEventListener('vapt_vulnerability_status_changed', handleStatusSync);
+      window.removeEventListener('vapt_data_changed', handleStatusSync);
+    };
   }, []);
 
   const handleOpenStatusModal = (vuln: Vulnerability, newStatus: VulnStatus) => {

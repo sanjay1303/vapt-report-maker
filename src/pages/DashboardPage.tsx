@@ -31,7 +31,11 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
       setStorageTick((tick) => tick + 1);
     };
     window.addEventListener('vapt_vulnerability_status_changed', handleSync);
-    return () => window.removeEventListener('vapt_vulnerability_status_changed', handleSync);
+    window.addEventListener('vapt_data_changed', handleSync);
+    return () => {
+      window.removeEventListener('vapt_vulnerability_status_changed', handleSync);
+      window.removeEventListener('vapt_data_changed', handleSync);
+    };
   }, []);
 
   const projects = storage.getProjects();

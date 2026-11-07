@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Plus,
   Search,
@@ -46,6 +46,14 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ onNavigate }) => {
   const refreshProjects = () => {
     setProjects(storage.getProjects());
   };
+
+  useEffect(() => {
+    const handleDataChanged = () => {
+      refreshProjects();
+    };
+    window.addEventListener('vapt_data_changed', handleDataChanged);
+    return () => window.removeEventListener('vapt_data_changed', handleDataChanged);
+  }, []);
 
   // Filtered and sorted projects
   const filteredProjects = projects.filter((p) => {

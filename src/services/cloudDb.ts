@@ -1,9 +1,12 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Project, Module, Vulnerability, Report, Settings } from '../types';
 
+export type CloudDbStatus = 'connecting' | 'connected' | 'needs_grant' | 'error' | 'unconfigured';
+
 export interface CloudDbConfig {
   url: string;
-  anonKey: string;
+  status: CloudDbStatus;
+  statusMessage: string;
   autoSync: boolean;
   isConnected: boolean;
   lastSync?: string;
@@ -18,70 +21,62 @@ export function normalizeSupabaseUrl(rawUrl: string): string {
   return url;
 }
 
-const CONFIG_STORAGE_KEY = 'vapt_cloud_db_config_v1';
-const DEFAULT_SUPABASE_URL = 'https://iupuipgnwvmrcpojopao.supabase.co';
-const DEFAULT_SUPABASE_KEY = 'sb_publishable_lkbMejvGQs1H_LMFFN7d0w_CeKm3nyx';
+// Fixed Supabase credentials from Environment (.env / Vercel Environment Variables)
+const ENV_SUPABASE_URL = normalizeSupabaseUrl(
+  (import.meta as any).env?.VITE_SUPABASE_URL || 'https://iupuipgnwvmrcpojopao.supabase.co'
+);
+const ENV_SUPABASE_ANON_KEY = (
+  (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || 'sb_publishable_lkbMejvGQs1H_LMFFN7d0w_CeKm3nyx'
+).trim();
 
 class CloudDbService {
   private client: SupabaseClient | null = null;
   private config: CloudDbConfig = {
-    url: DEFAULT_SUPABASE_URL,
-    anonKey: DEFAULT_SUPABASE_KEY,
+    url: ENV_SUPABASE_URL,
+    status: 'connecting',
+    statusMessage: 'Checking Supabase cloud connection...',
     autoSync: true,
-    isConnected: true,
+    isConnected: false,
     provider: 'supabase',
   };
   private listeners: Array<(config: CloudDbConfig) => void> = [];
 
   constructor() {
-    this.loadConfig();
+    this.cleanLegacyStorage();
+    this.initClient();
+    this.checkConnection();
   }
 
-  private loadConfig() {
+  /**
+   * Clean any legacy credentials stored in localStorage so credentials are only loaded from env
+   */
+  private cleanLegacyStorage() {
     try {
-      const saved = localStorage.getItem(CONFIG_STORAGE_KEY);
-      if (saved) {
-        this.config = { ...this.config, ...JSON.parse(saved) };
-      }
-    } catch (e) {
-      console.warn('Could not read cloud db config from localStorage', e);
-    }
-
-    // Check environment variables as fallback
-    const metaEnv = (import.meta as any).env || {};
-    const envUrl = metaEnv.VITE_SUPABASE_URL;
-    const envKey = metaEnv.VITE_SUPABASE_ANON_KEY;
-
-    if (!this.config.url) {
-      this.config.url = envUrl || DEFAULT_SUPABASE_URL;
-    }
-    if (!this.config.anonKey) {
-      this.config.anonKey = envKey || DEFAULT_SUPABASE_KEY;
-    }
-
-    this.config.url = normalizeSupabaseUrl(this.config.url);
-
-    if (this.config.url && this.config.anonKey) {
-      this.initClient(this.config.url, this.config.anonKey);
+      localStorage.removeItem('vapt_cloud_db_config_v1');
+    } catch {
+      // ignore
     }
   }
 
-  private initClient(rawUrl: string, anonKey: string) {
+  private initClient() {
     try {
-      const url = normalizeSupabaseUrl(rawUrl);
-      if (url && anonKey && url.startsWith('http')) {
-        this.client = createClient(url, anonKey, {
+      if (ENV_SUPABASE_URL && ENV_SUPABASE_ANON_KEY && ENV_SUPABASE_URL.startsWith('http')) {
+        this.client = createClient(ENV_SUPABASE_URL, ENV_SUPABASE_ANON_KEY, {
           auth: {
-            persistSession: true,
+            persistSession: false,
             autoRefreshToken: true,
           },
         });
       } else {
         this.client = null;
+        this.config.status = 'unconfigured';
+        this.config.statusMessage = 'Supabase environment variables (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY) are missing.';
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('Failed to initialize Supabase client:', e);
       this.client = null;
+      this.config.status = 'error';
+      this.config.statusMessage = e?.message || 'Failed to initialize Supabase client';
     }
   }
 
@@ -101,104 +96,98 @@ class CloudDbService {
     this.listeners.forEach((l) => l(this.getConfig()));
   }
 
-  public saveConfig(newConfig: Partial<CloudDbConfig>): void {
-    if (newConfig.url) {
-      newConfig.url = normalizeSupabaseUrl(newConfig.url);
-    }
-    this.config = { ...this.config, ...newConfig };
-    try {
-      localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(this.config));
-    } catch (e) {
-      console.error('Failed to save cloud db config to localStorage', e);
-    }
-
-    if (this.config.url && this.config.anonKey) {
-      this.initClient(this.config.url, this.config.anonKey);
-    } else {
-      this.client = null;
-      this.config.isConnected = false;
-    }
-
-    this.notify();
-  }
-
   public isConfigured(): boolean {
-    return Boolean(this.client && this.config.url && this.config.anonKey);
+    return Boolean(this.client && ENV_SUPABASE_URL && ENV_SUPABASE_ANON_KEY);
   }
 
   public isConnected(): boolean {
     return Boolean(this.config.isConnected && this.client);
   }
 
+  public setAutoSync(enabled: boolean) {
+    this.config.autoSync = enabled;
+    this.notify();
+  }
+
   /**
-   * Test connection to Supabase instance
+   * Test and verify connection to Supabase instance
    */
-  public async testConnection(
-    urlToTest?: string,
-    keyToTest?: string
-  ): Promise<{ success: boolean; message: string; needsGrant?: boolean }> {
-    const rawUrl = urlToTest || this.config.url;
-    const url = normalizeSupabaseUrl(rawUrl);
-    const key = (keyToTest || this.config.anonKey).trim();
-
-    if (!url || !key) {
-      return { success: false, message: 'Please provide both Supabase Project URL and Anon Public Key.' };
-    }
-
-    if (!url.startsWith('https://') && !url.startsWith('http://')) {
-      return { success: false, message: 'Supabase URL must start with https:// (e.g. https://xyz.supabase.co)' };
+  public async checkConnection(): Promise<{
+    success: boolean;
+    status: CloudDbStatus;
+    message: string;
+    needsGrant?: boolean;
+  }> {
+    if (!this.client) {
+      this.config.status = 'unconfigured';
+      this.config.isConnected = false;
+      this.config.statusMessage = 'Supabase environment variables not configured.';
+      this.notify();
+      return {
+        success: false,
+        status: 'unconfigured',
+        message: 'Supabase environment variables not configured in .env',
+      };
     }
 
     try {
-      const testClient = createClient(url, key);
-
-      // Try querying vapt_cloud_store table
-      const { data, error } = await testClient.from('vapt_cloud_store').select('key').limit(1);
+      // Query vapt_cloud_store table
+      const { data, error } = await this.client.from('vapt_cloud_store').select('key').limit(1);
 
       if (error) {
         // Code 42501: Table exists, but PostgreSQL permissions need to be granted to anon
         if (error.code === '42501') {
-          this.config.isConnected = true;
-          this.saveConfig({ url, anonKey: key, isConnected: true });
+          this.config.status = 'needs_grant';
+          this.config.isConnected = false;
+          this.config.statusMessage =
+            'Connected to Supabase project, but PostgreSQL permission is denied for "anon" role. Run the Grant SQL command in Supabase SQL editor.';
+          this.notify();
           return {
-            success: true,
+            success: false,
+            status: 'needs_grant',
             needsGrant: true,
             message:
-              'Connected to Supabase! Table exists. To enable full read/write, run the Grant SQL command in your Supabase SQL Editor.',
+              'Supabase table exists, but public permission is denied (42501). Please run the Grant SQL command in your Supabase SQL Editor.',
           };
         }
 
         // Code 42P01: Table doesn't exist yet
         if (error.code === '42P01') {
-          this.config.isConnected = true;
-          this.saveConfig({ url, anonKey: key, isConnected: true });
+          this.config.status = 'needs_grant';
+          this.config.isConnected = false;
+          this.config.statusMessage =
+            'Database tables are not created yet in Supabase. Please execute the SQL setup script in Supabase SQL Editor.';
+          this.notify();
           return {
-            success: true,
-            message:
-              'Connected to Supabase! Database tables are not created yet. Please execute the SQL Setup Script to finish setup.',
+            success: false,
+            status: 'needs_grant',
+            needsGrant: true,
+            message: 'Database tables do not exist in Supabase yet. Please execute the SQL setup script.',
           };
         }
 
-        // Try checking auth endpoint as a connection health check
-        const { error: authError } = await testClient.auth.getSession();
-        if (!authError) {
-          this.config.isConnected = true;
-          this.saveConfig({ url, anonKey: key, isConnected: true });
-          return {
-            success: true,
-            message:
-              'Connected to Supabase project! Please execute the SQL setup script in your Supabase SQL editor to create the tables.',
-          };
-        }
-
-        return { success: false, message: `Connection failed: ${error.message || 'Check your credentials.'}` };
+        this.config.status = 'error';
+        this.config.isConnected = false;
+        this.config.statusMessage = `Connection error: ${error.message}`;
+        this.notify();
+        return { success: false, status: 'error', message: error.message };
       }
 
+      this.config.status = 'connected';
       this.config.isConnected = true;
-      this.saveConfig({ url, anonKey: key, isConnected: true });
-      return { success: true, message: 'Connection successful! Supabase cloud database is connected and ready.' };
+      this.config.statusMessage = 'Connected to Supabase Cloud Database';
+      this.notify();
+      return {
+        success: true,
+        status: 'connected',
+        message: 'Connection verified! Supabase cloud database is connected and ready.',
+      };
     } catch (e: any) {
-      return { success: false, message: `Connection error: ${e.message || 'Unknown network error'}` };
+      this.config.status = 'error';
+      this.config.isConnected = false;
+      this.config.statusMessage = `Connection error: ${e.message || 'Unknown network error'}`;
+      this.notify();
+      return { success: false, status: 'error', message: e.message || 'Unknown network error' };
     }
   }
 
@@ -213,7 +202,7 @@ class CloudDbService {
     settings: Settings;
   }): Promise<{ success: boolean; message: string; syncedAt?: string; needsGrant?: boolean }> {
     if (!this.client) {
-      return { success: false, message: 'Database not connected. Please configure your Supabase credentials first.' };
+      return { success: false, message: 'Database client not initialized. Check .env configuration.' };
     }
 
     try {
@@ -235,16 +224,21 @@ class CloudDbService {
       if (storeError) {
         console.warn('Could not write to vapt_cloud_store:', storeError);
         const isPermError = storeError.code === '42501';
+        if (isPermError) {
+          this.config.status = 'needs_grant';
+          this.config.isConnected = false;
+          this.notify();
+        }
         return {
           success: false,
           needsGrant: isPermError,
           message: isPermError
-            ? 'Permission denied by Supabase. Please run the Grant SQL script in Supabase SQL editor to allow read/write.'
-            : `Failed to sync to cloud: ${storeError.message}. Make sure you ran the SQL setup script.`,
+            ? 'Permission denied by Supabase (code: 42501). Please run the Grant SQL command in Supabase SQL editor.'
+            : `Failed to sync to cloud: ${storeError.message}`,
         };
       }
 
-      // 2. Also try optional relational sync (fire & forget, if tables exist)
+      // 2. Also try optional relational sync (fire & forget)
       try {
         if (localData.projects.length > 0) {
           await this.client.from('vapt_projects').upsert(
@@ -307,7 +301,10 @@ class CloudDbService {
       }
 
       const syncedAt = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-      this.saveConfig({ lastSync: syncedAt, isConnected: true });
+      this.config.lastSync = syncedAt;
+      this.config.status = 'connected';
+      this.config.isConnected = true;
+      this.notify();
 
       return {
         success: true,
@@ -335,29 +332,35 @@ class CloudDbService {
     };
   }> {
     if (!this.client) {
-      return { success: false, message: 'Database not connected. Please configure your Supabase credentials first.' };
+      return { success: false, message: 'Database client not initialized. Check .env configuration.' };
     }
 
     try {
-      const { data, error } = await this.client
-        .from('vapt_cloud_store')
-        .select('*');
+      const { data, error } = await this.client.from('vapt_cloud_store').select('*');
 
       if (error) {
         const isPermError = error.code === '42501';
+        if (isPermError) {
+          this.config.status = 'needs_grant';
+          this.config.isConnected = false;
+          this.notify();
+        }
         return {
           success: false,
           needsGrant: isPermError,
           message: isPermError
-            ? 'Permission denied by Supabase. Please run the Grant SQL script in Supabase SQL editor to allow read access.'
+            ? 'Permission denied by Supabase (code: 42501). Please run the Grant SQL command in Supabase SQL editor.'
             : `Failed to pull from cloud: ${error.message}`,
         };
       }
 
       if (!data || data.length === 0) {
+        this.config.status = 'connected';
+        this.config.isConnected = true;
+        this.notify();
         return {
           success: false,
-          message: 'Cloud database is connected, but has no data yet. Click "Sync Local Data to Cloud" to populate it.',
+          message: 'Cloud database is connected, but has no records yet.',
         };
       }
 
@@ -367,7 +370,10 @@ class CloudDbService {
       });
 
       const syncedAt = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-      this.saveConfig({ lastSync: syncedAt, isConnected: true });
+      this.config.lastSync = syncedAt;
+      this.config.status = 'connected';
+      this.config.isConnected = true;
+      this.notify();
 
       return {
         success: true,
@@ -386,14 +392,25 @@ class CloudDbService {
     key: 'projects' | 'modules' | 'vulnerabilities' | 'reports' | 'settings',
     allCurrentItems: any
   ): Promise<void> {
-    if (!this.client || !this.config.autoSync || !this.config.isConnected) return;
+    if (!this.client || !this.config.autoSync || this.config.status === 'needs_grant') return;
 
     try {
       const now = new Date().toISOString();
-      await this.client
+      const { error } = await this.client
         .from('vapt_cloud_store')
         .upsert({ key, value: allCurrentItems, updated_at: now }, { onConflict: 'key' });
 
+      if (error) {
+        if (error.code === '42501') {
+          this.config.status = 'needs_grant';
+          this.config.isConnected = false;
+          this.notify();
+        }
+        return;
+      }
+
+      this.config.status = 'connected';
+      this.config.isConnected = true;
       this.config.lastSync = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
       this.notify();
     } catch (e) {
@@ -407,7 +424,7 @@ class CloudDbService {
   public getSqlSetupScript(): string {
     return `-- ========================================================
 -- VAPT REPORT MAKER — SUPABASE DATABASE SETUP & PERMISSIONS
--- Run this in your Supabase SQL Editor (Takes 5 seconds)
+-- Run this in your Supabase SQL Editor (Takes 3 seconds)
 -- ========================================================
 
 -- 1. Grant public and authenticated permissions on schema
@@ -418,21 +435,19 @@ GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated;
 
--- 2. Main Key-Value Document Store (Guarantees 100% full compatibility)
-CREATE TABLE IF NOT EXISTS vapt_cloud_store (
+-- 2. Main Key-Value Document Store
+CREATE TABLE IF NOT EXISTS public.vapt_cloud_store (
   key TEXT PRIMARY KEY,
   value JSONB NOT NULL,
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Enable Row Level Security (RLS) with full public access policy
-ALTER TABLE vapt_cloud_store ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Allow public full access on vapt_cloud_store" ON vapt_cloud_store;
-CREATE POLICY "Allow public full access on vapt_cloud_store" ON vapt_cloud_store FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
-GRANT ALL ON TABLE vapt_cloud_store TO anon, authenticated;
+-- Disable Row Level Security (RLS) to allow anon public access
+ALTER TABLE public.vapt_cloud_store DISABLE ROW LEVEL SECURITY;
+GRANT ALL ON TABLE public.vapt_cloud_store TO anon, authenticated;
 
--- 3. Optional Relational Tables for direct SQL querying and reporting
-CREATE TABLE IF NOT EXISTS vapt_projects (
+-- 3. Optional Relational Tables
+CREATE TABLE IF NOT EXISTS public.vapt_projects (
   id TEXT PRIMARY KEY,
   code TEXT,
   name TEXT,
@@ -447,13 +462,10 @@ CREATE TABLE IF NOT EXISTS vapt_projects (
   raw_data JSONB,
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+ALTER TABLE public.vapt_projects DISABLE ROW LEVEL SECURITY;
+GRANT ALL ON TABLE public.vapt_projects TO anon, authenticated;
 
-ALTER TABLE vapt_projects ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Allow public full access on vapt_projects" ON vapt_projects;
-CREATE POLICY "Allow public full access on vapt_projects" ON vapt_projects FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
-GRANT ALL ON TABLE vapt_projects TO anon, authenticated;
-
-CREATE TABLE IF NOT EXISTS vapt_reports (
+CREATE TABLE IF NOT EXISTS public.vapt_reports (
   id TEXT PRIMARY KEY,
   name TEXT,
   project_id TEXT,
@@ -463,13 +475,10 @@ CREATE TABLE IF NOT EXISTS vapt_reports (
   raw_data JSONB,
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+ALTER TABLE public.vapt_reports DISABLE ROW LEVEL SECURITY;
+GRANT ALL ON TABLE public.vapt_reports TO anon, authenticated;
 
-ALTER TABLE vapt_reports ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Allow public full access on vapt_reports" ON vapt_reports;
-CREATE POLICY "Allow public full access on vapt_reports" ON vapt_reports FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
-GRANT ALL ON TABLE vapt_reports TO anon, authenticated;
-
-CREATE TABLE IF NOT EXISTS vapt_vulnerabilities (
+CREATE TABLE IF NOT EXISTS public.vapt_vulnerabilities (
   id TEXT PRIMARY KEY,
   project_id TEXT,
   module_id TEXT,
@@ -483,11 +492,8 @@ CREATE TABLE IF NOT EXISTS vapt_vulnerabilities (
   raw_data JSONB,
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
-
-ALTER TABLE vapt_vulnerabilities ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Allow public full access on vapt_vulnerabilities" ON vapt_vulnerabilities;
-CREATE POLICY "Allow public full access on vapt_vulnerabilities" ON vapt_vulnerabilities FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
-GRANT ALL ON TABLE vapt_vulnerabilities TO anon, authenticated;
+ALTER TABLE public.vapt_vulnerabilities DISABLE ROW LEVEL SECURITY;
+GRANT ALL ON TABLE public.vapt_vulnerabilities TO anon, authenticated;
 `;
   }
 }
