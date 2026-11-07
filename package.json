@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.119.0",
     "docx": "^8.5.0",
     "file-saver": "^2.0.5",
     "html2canvas": "^1.4.1",
@@ -29,4 +30,3 @@
     "vite": "^5.4.2"
   }
 }
-

@@ -11,10 +11,12 @@ import {
   CheckCircle2,
   Trash2,
   Database,
+  Cloud,
   AlertTriangle,
 } from 'lucide-react';
 import { Settings, Severity } from '../types';
 import { storage } from '../services/storage';
+import { CloudDatabaseSection } from '../components/database/CloudDatabaseSection';
 
 interface SettingsPageProps {
   settings: Settings;
@@ -22,6 +24,7 @@ interface SettingsPageProps {
   onClearAllData?: () => void;
   onLoadSampleData?: () => void;
   onResetData: () => void;
+  initialTab?: 'organization' | 'branding' | 'defaults' | 'templates' | 'database' | 'data';
 }
 
 export const SettingsPage: React.FC<SettingsPageProps> = ({
@@ -30,10 +33,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   onClearAllData,
   onLoadSampleData,
   onResetData,
+  initialTab = 'organization',
 }) => {
   const [formData, setFormData] = useState<Settings>({ ...settings });
   const [savedSuccess, setSavedSuccess] = useState(false);
-  const [activeTab, setActiveTab] = useState<'organization' | 'branding' | 'defaults' | 'templates' | 'data'>('organization');
+  const [activeTab, setActiveTab] = useState<'organization' | 'branding' | 'defaults' | 'templates' | 'database' | 'data'>(initialTab);
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -148,6 +152,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             { id: 'branding', label: 'Report Branding & Colors', icon: Palette },
             { id: 'defaults', label: 'Assessment Defaults', icon: Shield },
             { id: 'templates', label: 'Legal & Disclaimers', icon: FileText },
+            { id: 'database', label: 'Free Cloud DB', icon: Cloud },
             { id: 'data', label: 'Data Management', icon: Database },
           ].map((tab) => {
             const Icon = tab.icon;
@@ -367,7 +372,14 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           </div>
         )}
 
-        {/* Tab 5: Data Management */}
+        {/* Tab 5: Cloud Database */}
+        {activeTab === 'database' && (
+          <div className="p-6">
+            <CloudDatabaseSection onDataChanged={onLoadSampleData} />
+          </div>
+        )}
+
+        {/* Tab 6: Data Management */}
         {activeTab === 'data' && (
           <div className="p-6 space-y-6">
             <div className="p-4 bg-red-50 border border-red-200 rounded-xl space-y-3">

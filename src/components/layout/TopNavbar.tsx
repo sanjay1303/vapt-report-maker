@@ -9,9 +9,13 @@ import {
   ShieldAlert,
   X,
   ExternalLink,
+  Database,
+  Cloud,
 } from 'lucide-react';
 import { Settings } from '../../types';
 import { storage } from '../../services/storage';
+import { cloudDb, CloudDbConfig } from '../../services/cloudDb';
+import { CloudDatabaseModal } from '../database/CloudDatabaseModal';
 import { NavTab } from './Sidebar';
 
 interface TopNavbarProps {
@@ -36,7 +40,13 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
   onNavigate,
 }) => {
   const [isOpenResults, setIsOpenResults] = useState(false);
+  const [isDbModalOpen, setIsDbModalOpen] = useState(false);
+  const [cloudConfig, setCloudConfig] = useState<CloudDbConfig>(() => cloudDb.getConfig());
   const searchRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    return cloudDb.subscribe(setCloudConfig);
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -249,6 +259,34 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
           )}
         </div>
 
+        {/* Cloud Database Pill */}
+        <button
+          type="button"
+          onClick={() => setIsDbModalOpen(true)}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
+            cloudConfig.isConnected
+              ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100 shadow-2xs'
+              : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+          }`}
+          title={cloudConfig.isConnected ? 'Cloud Database Connected (Supabase)' : 'Connect Free Cloud Database'}
+        >
+          {cloudConfig.isConnected ? (
+            <>
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <Cloud className="w-3.5 h-3.5 text-emerald-600" />
+              <span className="hidden sm:inline">Cloud DB: Connected</span>
+            </>
+          ) : (
+            <>
+              <Database className="w-3.5 h-3.5 text-slate-500" />
+              <span className="hidden sm:inline text-slate-600">Local Mode</span>
+              <span className="text-[10px] bg-primary-100 text-primary-700 px-1.5 py-0.5 rounded-full font-bold">
+                Connect Free DB
+              </span>
+            </>
+          )}
+        </button>
+
         {/* Notifications */}
         <button
           className="relative p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
@@ -275,6 +313,12 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Cloud Database Config Modal */}
+      <CloudDatabaseModal
+        isOpen={isDbModalOpen}
+        onClose={() => setIsDbModalOpen(false)}
+      />
     </header>
   );
 };

@@ -1,4 +1,5 @@
 import { Project, Module, Vulnerability, Report, Template, Activity, Settings, VulnStatus, StatusNote } from '../types';
+import { cloudDb } from './cloudDb';
 
 const STORAGE_KEYS = {
   PROJECTS: 'vapt_projects_v1',
@@ -1154,6 +1155,7 @@ class StorageService {
 
   saveProjects(projects: Project[]): void {
     this.setItem(STORAGE_KEYS.PROJECTS, projects);
+    cloudDb.autoSyncItem('projects', projects);
   }
 
   getProjectById(id: string): Project | undefined {
@@ -1335,6 +1337,7 @@ class StorageService {
 
   saveModules(modules: Module[]): void {
     this.setItem(STORAGE_KEYS.MODULES, modules);
+    cloudDb.autoSyncItem('modules', modules);
   }
 
   addModule(module: Omit<Module, 'id' | 'vulnsCount' | 'criticalCount' | 'highCount' | 'mediumCount' | 'lowCount' | 'infoCount'>): Module {
@@ -1391,6 +1394,7 @@ class StorageService {
 
   saveReports(reports: Report[]): void {
     this.setItem(STORAGE_KEYS.REPORTS, reports);
+    cloudDb.autoSyncItem('reports', reports);
   }
 
   getReportById(id: string): Report | undefined {
@@ -1468,6 +1472,7 @@ class StorageService {
 
   saveGlobalVulnerabilities(vulns: Vulnerability[]): void {
     this.setItem(STORAGE_KEYS.VULNERABILITIES, vulns);
+    cloudDb.autoSyncItem('vulnerabilities', this.getAllVulnerabilities());
   }
 
   addGlobalVulnerability(vuln: Omit<Vulnerability, 'id' | 'createdDate'>): Vulnerability {
@@ -1742,6 +1747,30 @@ class StorageService {
 
   saveSettings(settings: Settings): void {
     this.setItem(STORAGE_KEYS.SETTINGS, settings);
+    cloudDb.autoSyncItem('settings', settings);
+  }
+
+  // Cloud Database Sync helpers
+  async syncToCloud() {
+    return cloudDb.syncLocalToCloud({
+      projects: this.getProjects(),
+      modules: this.getModules(),
+      vulnerabilities: this.getAllVulnerabilities(),
+      reports: this.getReports(),
+      settings: this.getSettings(),
+    });
+  }
+
+  async pullFromCloud() {
+    const result = await cloudDb.pullCloudToLocal();
+    if (result.success && result.data) {
+      if (Array.isArray(result.data.projects)) this.saveProjects(result.data.projects);
+      if (Array.isArray(result.data.modules)) this.saveModules(result.data.modules);
+      if (Array.isArray(result.data.reports)) this.saveReports(result.data.reports);
+      if (Array.isArray(result.data.vulnerabilities)) this.saveGlobalVulnerabilities(result.data.vulnerabilities);
+      if (result.data.settings) this.saveSettings(result.data.settings);
+    }
+    return result;
   }
 
   // Completely wipe all user data (projects, modules, vulns, reports, activities)

@@ -203,6 +203,7 @@ export function App() {
               onClearAllData={handleClearAllData}
               onLoadSampleData={handleLoadSampleData}
               onResetData={handleResetData}
+              initialTab={navParams?.tab}
             />
           )}
         </main>
