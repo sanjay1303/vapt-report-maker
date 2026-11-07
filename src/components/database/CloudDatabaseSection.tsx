@@ -14,7 +14,7 @@ import {
   Code,
   Check,
 } from 'lucide-react';
-import { cloudDb, CloudDbConfig } from '../../services/cloudDb';
+import { cloudDb, CloudDbConfig, normalizeSupabaseUrl } from '../../services/cloudDb';
 import { storage } from '../../services/storage';
 
 interface CloudDatabaseSectionProps {
@@ -28,7 +28,7 @@ export const CloudDatabaseSection: React.FC<CloudDatabaseSectionProps> = ({ onDa
   const [autoSync, setAutoSync] = useState(config.autoSync);
 
   const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string; needsGrant?: boolean } | null>(null);
 
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<{ success: boolean; message: string } | null>(null);
@@ -54,13 +54,15 @@ export const CloudDatabaseSection: React.FC<CloudDatabaseSectionProps> = ({ onDa
     setTestResult(null);
     setSyncResult(null);
 
-    const res = await cloudDb.testConnection(url.trim(), anonKey.trim());
+    const cleanUrl = normalizeSupabaseUrl(url);
+    setUrl(cleanUrl);
+    const res = await cloudDb.testConnection(cleanUrl, anonKey.trim());
     setTesting(false);
     setTestResult(res);
 
     if (res.success) {
       cloudDb.saveConfig({
-        url: url.trim(),
+        url: cleanUrl,
         anonKey: anonKey.trim(),
         autoSync,
         isConnected: true,
@@ -246,18 +248,36 @@ export const CloudDatabaseSection: React.FC<CloudDatabaseSectionProps> = ({ onDa
         {/* Test Result Message */}
         {testResult && (
           <div
-            className={`p-3.5 rounded-lg text-xs flex items-start gap-2.5 ${
+            className={`p-3.5 rounded-lg text-xs space-y-2.5 ${
               testResult.success
                 ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
                 : 'bg-rose-50 text-rose-800 border border-rose-200'
             }`}
           >
-            {testResult.success ? (
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-            ) : (
-              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+            <div className="flex items-start gap-2.5">
+              {testResult.success ? (
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+              ) : (
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+              )}
+              <div className="leading-relaxed font-medium">{testResult.message}</div>
+            </div>
+
+            {testResult.needsGrant && (
+              <div className="pt-2 border-t border-emerald-200/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                <span className="text-[11px] text-emerald-700 font-medium">
+                  One-time action: Run permission grant SQL in Supabase SQL editor:
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCopySql}
+                  className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md font-bold text-[11px] flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 shadow-xs"
+                >
+                  {copiedSql ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedSql ? 'Copied Grant SQL!' : 'Copy Grant SQL'}</span>
+                </button>
+              </div>
             )}
-            <div className="leading-relaxed font-medium">{testResult.message}</div>
           </div>
         )}
 
