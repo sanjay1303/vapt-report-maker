@@ -480,59 +480,61 @@ export const A4ReportDocument: React.FC<A4ReportDocumentProps> = ({
                     )}
                   </div>
 
-                  {/* Proof of Concept (POC) */}
-                  <div className="mb-2.5">
-                    <div className="text-xs font-bold text-slate-900 mb-1">Proof of Concept (POC):</div>
-                    <div className="text-xs text-slate-800 space-y-1 leading-relaxed pl-0.5">
-                      <p>
-                        <strong>Preconditions: </strong>
-                        <span>{v.preconditions || '[Required test role, account, and setup.]'}</span>
-                      </p>
-                      <div>
-                        <strong className="block mb-0.5">Reproduction steps:</strong>
-                        {v.stepsToReproduce ? (
-                          <p className="whitespace-pre-line text-xs text-slate-800 pl-2 border-l-2 border-slate-300">
-                            {v.stepsToReproduce}
+                  {/* Proof of Concept (POC) - only render if there are preconditions, steps, evidence references, or evidence items */}
+                  {(Boolean(v.preconditions && v.preconditions.trim()) ||
+                    Boolean(v.stepsToReproduce && v.stepsToReproduce.trim()) ||
+                    Boolean(v.evidenceReferences && v.evidenceReferences.trim()) ||
+                    (v.evidence && v.evidence.length > 0)) && (
+                    <div className="mb-2.5">
+                      <div className="text-xs font-bold text-slate-900 mb-1">Proof of Concept (POC):</div>
+                      <div className="text-xs text-slate-800 space-y-1 leading-relaxed pl-0.5">
+                        {v.preconditions && v.preconditions.trim() && (
+                          <p>
+                            <strong>Preconditions: </strong>
+                            <span>{v.preconditions}</span>
                           </p>
-                        ) : (
-                          <ol className="list-decimal list-inside space-y-0.5 pl-1 text-[11.5px] text-slate-600">
-                            <li>[Establish a baseline request using an authorized test account.]</li>
-                            <li>[Modify only the relevant parameter, identifier, header, or workflow step.]</li>
-                            <li>[Replay the request in the approved test environment.]</li>
-                            <li>[Record the response and demonstrate the security impact using test data.]</li>
-                          </ol>
+                        )}
+                        {v.stepsToReproduce && v.stepsToReproduce.trim() && (
+                          <div>
+                            <strong className="block mb-0.5">Reproduction steps:</strong>
+                            <p className="whitespace-pre-line text-xs text-slate-800 pl-2 border-l-2 border-slate-300">
+                              {v.stepsToReproduce}
+                            </p>
+                          </div>
+                        )}
+                        {v.evidenceReferences && v.evidenceReferences.trim() && (
+                          <p>
+                            <strong>Evidence references: </strong>
+                            <span>{v.evidenceReferences}</span>
+                          </p>
+                        )}
+
+                        {/* Render Evidence Items if available */}
+                        {v.evidence && v.evidence.length > 0 && (
+                          <div className="space-y-2 mt-2 pt-1">
+                            {v.evidence.map((ev) => (
+                              <div key={ev.id} className="bg-slate-50 p-2.5 rounded border border-slate-200 text-xs">
+                                <span className="font-bold text-slate-800 block mb-1">
+                                  Evidence: {ev.title} ({ev.type})
+                                </span>
+                                {ev.type === 'screenshot' ? (
+                                  <img
+                                    src={ev.content}
+                                    alt={ev.title}
+                                    className="max-h-64 rounded border border-slate-200 object-contain mx-auto"
+                                  />
+                                ) : (
+                                  <pre className="p-2 bg-slate-900 text-emerald-400 font-mono text-[10px] rounded overflow-x-auto whitespace-pre-wrap">
+                                    {ev.content}
+                                  </pre>
+                                )}
+                              </div>
+                            ))}
+                          </div>
                         )}
                       </div>
-                      <p>
-                        <strong>Evidence references: </strong>
-                        <span>{v.evidenceReferences || '[Screenshot names, sanitized request/response files, timestamps, and test account role.]'}</span>
-                      </p>
-
-                      {/* Render Evidence Items if available */}
-                      {v.evidence && v.evidence.length > 0 && (
-                        <div className="space-y-2 mt-2 pt-1">
-                          {v.evidence.map((ev) => (
-                            <div key={ev.id} className="bg-slate-50 p-2.5 rounded border border-slate-200 text-xs">
-                              <span className="font-bold text-slate-800 block mb-1">
-                                Evidence: {ev.title} ({ev.type})
-                              </span>
-                              {ev.type === 'screenshot' ? (
-                                <img
-                                  src={ev.content}
-                                  alt={ev.title}
-                                  className="max-h-64 rounded border border-slate-200 object-contain mx-auto"
-                                />
-                              ) : (
-                                <pre className="p-2 bg-slate-900 text-emerald-400 font-mono text-[10px] rounded overflow-x-auto whitespace-pre-wrap">
-                                  {ev.content}
-                                </pre>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
                     </div>
-                  </div>
+                  )}
 
                   {/* Retest Notes / Session */}
                   {(v.isRetested || (v.retestNotes && v.retestNotes.trim().length > 0)) && (

@@ -799,44 +799,52 @@ export const exportService = {
                       )
                     : [new Paragraph({ children: [new TextRun({ text: '• None documented', size: 19 })], spacing: { after: 40 } })]),
 
-                  // Proof of Concept (POC)
-                  new Paragraph({
-                    children: [new TextRun({ text: 'Proof of Concept (POC):', bold: true, size: 20, color: '0F172A' })],
-                    spacing: { before: 140, after: 60 },
-                  }),
-                  new Paragraph({
-                    children: [
-                      new TextRun({ text: 'Preconditions: ', bold: true }),
-                      new TextRun({ text: vuln.preconditions || '[Required test role, account, and setup.]', size: 19 }),
-                    ],
-                    spacing: { after: 60 },
-                  }),
-                  new Paragraph({
-                    children: [
-                      new TextRun({ text: 'Reproduction steps:', bold: true }),
-                    ],
-                    spacing: { after: 40 },
-                  }),
-                  ...(vuln.stepsToReproduce
+                  // Proof of Concept (POC) - only render if there are preconditions, steps, evidence references, or evidence items
+                  ...((vuln.preconditions && vuln.preconditions.trim()) ||
+                  (vuln.stepsToReproduce && vuln.stepsToReproduce.trim()) ||
+                  (vuln.evidenceReferences && vuln.evidenceReferences.trim()) ||
+                  evidenceItems.length > 0
                     ? [
                         new Paragraph({
-                          children: [new TextRun({ text: vuln.stepsToReproduce, size: 18 })],
-                          spacing: { after: 60 },
+                          children: [new TextRun({ text: 'Proof of Concept (POC):', bold: true, size: 20, color: '0F172A' })],
+                          spacing: { before: 140, after: 60 },
                         }),
+                        ...(vuln.preconditions && vuln.preconditions.trim()
+                          ? [
+                              new Paragraph({
+                                children: [
+                                  new TextRun({ text: 'Preconditions: ', bold: true }),
+                                  new TextRun({ text: vuln.preconditions, size: 19 }),
+                                ],
+                                spacing: { after: 60 },
+                              }),
+                            ]
+                          : []),
+                        ...(vuln.stepsToReproduce && vuln.stepsToReproduce.trim()
+                          ? [
+                              new Paragraph({
+                                children: [new TextRun({ text: 'Reproduction steps:', bold: true })],
+                                spacing: { after: 40 },
+                              }),
+                              new Paragraph({
+                                children: [new TextRun({ text: vuln.stepsToReproduce, size: 18 })],
+                                spacing: { after: 60 },
+                              }),
+                            ]
+                          : []),
+                        ...(vuln.evidenceReferences && vuln.evidenceReferences.trim()
+                          ? [
+                              new Paragraph({
+                                children: [
+                                  new TextRun({ text: 'Evidence references: ', bold: true }),
+                                  new TextRun({ text: vuln.evidenceReferences, size: 18 }),
+                                ],
+                                spacing: { after: 100 },
+                              }),
+                            ]
+                          : []),
                       ]
-                    : [
-                        new Paragraph({ children: [new TextRun({ text: '1. [Establish a baseline request using an authorized test account.]', size: 18 })], spacing: { after: 20 } }),
-                        new Paragraph({ children: [new TextRun({ text: '2. [Modify only the relevant parameter, identifier, header, or workflow step.]', size: 18 })], spacing: { after: 20 } }),
-                        new Paragraph({ children: [new TextRun({ text: '3. [Replay the request in the approved test environment.]', size: 18 })], spacing: { after: 20 } }),
-                        new Paragraph({ children: [new TextRun({ text: '4. [Record the response and demonstrate the security impact using test data.]', size: 18 })], spacing: { after: 60 } }),
-                      ]),
-                  new Paragraph({
-                    children: [
-                      new TextRun({ text: 'Evidence references: ', bold: true }),
-                      new TextRun({ text: vuln.evidenceReferences || '[Screenshot names, sanitized request/response files, timestamps, and test account role.]', size: 18 }),
-                    ],
-                    spacing: { after: 100 },
-                  }),
+                    : []),
 
                   // Embedded Proof of Concept Evidence Attachments (Real Images & Code Blocks)
                   ...evidenceItems.flatMap((item) => {
