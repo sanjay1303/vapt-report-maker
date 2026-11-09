@@ -177,8 +177,8 @@ class StorageService {
           m.projectId === p.code ||
           (m.projectId && p.id && m.projectId.toLowerCase() === p.id.toLowerCase())
       );
-      const computedModulesCount = Math.max(p.modulesCount || 0, projModules.length);
-      const computedVulnsCount = Math.max(p.vulnsCount || 0, projVulns.length);
+      const computedModulesCount = projModules.length;
+      const computedVulnsCount = projVulns.length;
 
       return {
         ...p,
@@ -389,10 +389,16 @@ class StorageService {
     modules.push(newModule);
     this.saveModules(modules);
 
-    // Update project modules count
+    // Update project modules count with exact count
     const project = this.getProjectById(module.projectId);
     if (project) {
-      this.updateProject(project.id, { modulesCount: (project.modulesCount || 0) + 1 });
+      const exactCount = modules.filter(
+        (m) =>
+          m.projectId === project.id ||
+          m.projectId === project.code ||
+          (m.projectId && project.id && m.projectId.toLowerCase() === project.id.toLowerCase())
+      ).length;
+      this.updateProject(project.id, { modulesCount: exactCount });
     }
 
     return newModule;
@@ -415,8 +421,14 @@ class StorageService {
     this.saveModules(modules);
 
     const project = this.getProjectById(target.projectId);
-    if (project && project.modulesCount > 0) {
-      this.updateProject(project.id, { modulesCount: project.modulesCount - 1 });
+    if (project) {
+      const exactCount = modules.filter(
+        (m) =>
+          m.projectId === project.id ||
+          m.projectId === project.code ||
+          (m.projectId && project.id && m.projectId.toLowerCase() === project.id.toLowerCase())
+      ).length;
+      this.updateProject(project.id, { modulesCount: exactCount });
     }
     return true;
   }

@@ -289,7 +289,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ onNavigate }) => {
                       <td className="py-3.5 px-4 text-slate-600">{p.client}</td>
                       <td className="py-3.5 px-4 font-medium text-slate-700">{displayEnv}</td>
                       <td className="py-3.5 px-4 text-center font-bold text-slate-800">
-                        {p.modulesCount}
+                        {pModules.length}
                       </td>
                       <td className="py-3.5 px-4 text-center">
                         <span className="font-bold text-primary-700 bg-primary-50 px-2 py-0.5 rounded-full border border-primary-200">
