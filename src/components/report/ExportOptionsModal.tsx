@@ -1,10 +1,9 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Modal } from '../common/Modal';
 import { SeverityBadge } from '../common/SeverityBadge';
 import { StatusBadge } from '../common/StatusBadge';
 import { Report, Vulnerability, VulnStatus } from '../../types';
 import {
-  FileText,
   Download,
   CheckCircle2,
   Tag,
@@ -31,13 +30,15 @@ interface ExportOptionsModalProps {
   isExportingWord?: boolean;
 }
 
-const ALL_STATUSES: VulnStatus[] = [
+const DEFAULT_STATUSES: VulnStatus[] = [
   'Open',
   'Fixed',
   'Partially Fixed',
   'Risk Accepted',
   'False Positive',
 ];
+
+const normalizeStatus = (s?: string): string => (s || 'Open').trim().toLowerCase();
 
 export const ExportOptionsModal: React.FC<ExportOptionsModalProps> = ({
   isOpen,
@@ -51,31 +52,76 @@ export const ExportOptionsModal: React.FC<ExportOptionsModalProps> = ({
 }) => {
   const [format, setFormat] = useState<ExportFormat>(initialFormat);
   const [scope, setScope] = useState<ExportScope>('complete');
-  const [selectedStatuses, setSelectedStatuses] = useState<VulnStatus[]>(['Open']);
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>(['Open']);
   const [selectedVulnIds, setSelectedVulnIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
   const vulns = useMemo(() => report.vulnerabilities || [], [report]);
 
-  // Initialize or reset state on open
+  // Dynamically collect all distinct statuses present in the report plus defaults
+  const allAvailableStatuses = useMemo(() => {
+    const list: string[] = [...DEFAULT_STATUSES];
+    vulns.forEach((v) => {
+      const st = (v.status || '').trim();
+      if (st && !list.some((existing) => existing.toLowerCase() === st.toLowerCase())) {
+        list.push(st);
+      }
+    });
+    return list;
+  }, [vulns]);
+
+  // Compute status counts in the current report (case-insensitive & trimmed)
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    allAvailableStatuses.forEach((s) => {
+      const norm = normalizeStatus(s);
+      counts[s] = vulns.filter((v) => normalizeStatus(v.status) === norm).length;
+    });
+    return counts;
+  }, [vulns, allAvailableStatuses]);
+
+  // Track modal open transition so we ONLY initialize state when modal is opened,
+  // preventing accidental state wipeouts if the parent re-renders while modal is active.
+  const prevIsOpenRef = useRef(false);
+
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !prevIsOpenRef.current) {
       setFormat(initialFormat);
       setScope('complete');
-      setSelectedStatuses(['Open']);
+      // Default selected statuses to any status that actually has findings > 0 in this report
+      const activeStatuses = allAvailableStatuses.filter(
+        (st) => (statusCounts[st] || 0) > 0
+      );
+      setSelectedStatuses(activeStatuses.length > 0 ? activeStatuses : ['Open']);
       setSelectedVulnIds(vulns.map((v) => v.id));
       setSearchQuery('');
     }
-  }, [isOpen, initialFormat, vulns]);
+    prevIsOpenRef.current = isOpen;
+  }, [isOpen, initialFormat, vulns, allAvailableStatuses, statusCounts]);
 
-  // Compute status counts in the current report
-  const statusCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    ALL_STATUSES.forEach((s) => {
-      counts[s] = vulns.filter((v) => v.status === s).length;
-    });
-    return counts;
-  }, [vulns]);
+  // Handle switching inclusion scope
+  const handleSelectScope = (newScope: ExportScope) => {
+    setScope(newScope);
+    if (newScope === 'status') {
+      // If current selected statuses match 0 findings, automatically select all active statuses
+      const matchingCount = vulns.filter((v) => {
+        const vNorm = normalizeStatus(v.status);
+        return selectedStatuses.some((s) => normalizeStatus(s) === vNorm);
+      }).length;
+
+      if (matchingCount === 0) {
+        const activeStatuses = allAvailableStatuses.filter(
+          (st) => (statusCounts[st] || 0) > 0
+        );
+        setSelectedStatuses(activeStatuses.length > 0 ? activeStatuses : ['Open']);
+      }
+    } else if (newScope === 'custom') {
+      // If none selected, default to all
+      if (selectedVulnIds.length === 0) {
+        setSelectedVulnIds(vulns.map((v) => v.id));
+      }
+    }
+  };
 
   // Compute filtered vulnerabilities based on selected scope
   const filteredVulns = useMemo(() => {
@@ -83,10 +129,12 @@ export const ExportOptionsModal: React.FC<ExportOptionsModalProps> = ({
       return vulns;
     }
     if (scope === 'status') {
-      return vulns.filter((v) => selectedStatuses.includes(v.status));
+      const selectedNormSet = new Set(selectedStatuses.map((s) => normalizeStatus(s)));
+      return vulns.filter((v) => selectedNormSet.has(normalizeStatus(v.status)));
     }
     if (scope === 'custom') {
-      return vulns.filter((v) => selectedVulnIds.includes(v.id));
+      const selectedIdSet = new Set(selectedVulnIds);
+      return vulns.filter((v) => selectedIdSet.has(v.id));
     }
     return vulns;
   }, [scope, vulns, selectedStatuses, selectedVulnIds]);
@@ -94,15 +142,15 @@ export const ExportOptionsModal: React.FC<ExportOptionsModalProps> = ({
   // Filtered vulnerability list for the search input in custom selection
   const searchedVulns = useMemo(() => {
     if (!searchQuery.trim()) return vulns;
-    const q = searchQuery.toLowerCase();
-    return vulns.filter(
-      (v) =>
-        v.name.toLowerCase().includes(q) ||
-        v.id.toLowerCase().includes(q) ||
-        v.severity.toLowerCase().includes(q) ||
-        v.status.toLowerCase().includes(q) ||
-        (v.endpoint && v.endpoint.toLowerCase().includes(q))
-    );
+    const q = searchQuery.toLowerCase().trim();
+    return vulns.filter((v) => {
+      const name = (v.name || '').toLowerCase();
+      const id = (v.id || '').toLowerCase();
+      const sev = (v.severity || '').toLowerCase();
+      const stat = (v.status || '').toLowerCase();
+      const ep = (v.endpoint || '').toLowerCase();
+      return name.includes(q) || id.includes(q) || sev.includes(q) || stat.includes(q) || ep.includes(q);
+    });
   }, [vulns, searchQuery]);
 
   // Severity summary of filtered findings
@@ -116,11 +164,17 @@ export const ExportOptionsModal: React.FC<ExportOptionsModalProps> = ({
     };
   }, [filteredVulns]);
 
-  // Toggle status selection
-  const handleToggleStatus = (status: VulnStatus) => {
-    setSelectedStatuses((prev) =>
-      prev.includes(status) ? prev.filter((s) => s !== status) : [...prev, status]
-    );
+  // Toggle status selection (robust case-insensitive check)
+  const handleToggleStatus = (status: string) => {
+    setSelectedStatuses((prev) => {
+      const norm = normalizeStatus(status);
+      const exists = prev.some((s) => normalizeStatus(s) === norm);
+      if (exists) {
+        return prev.filter((s) => normalizeStatus(s) !== norm);
+      } else {
+        return [...prev, status];
+      }
+    });
   };
 
   // Toggle single vulnerability selection
@@ -182,7 +236,7 @@ export const ExportOptionsModal: React.FC<ExportOptionsModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold text-slate-600 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors"
+              className="px-4 py-2 text-xs font-semibold text-slate-600 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer"
             >
               Cancel
             </button>
@@ -190,7 +244,7 @@ export const ExportOptionsModal: React.FC<ExportOptionsModalProps> = ({
               type="button"
               onClick={handleExport}
               disabled={filteredVulns.length === 0 || isExportingWord}
-              className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white rounded-xl shadow-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+              className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white rounded-xl shadow-xs transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
                 format === 'pdf'
                   ? 'bg-red-600 hover:bg-red-700 shadow-red-600/30'
                   : format === 'xlsx'
@@ -314,10 +368,10 @@ export const ExportOptionsModal: React.FC<ExportOptionsModalProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <button
               type="button"
-              onClick={() => setScope('complete')}
+              onClick={() => handleSelectScope('complete')}
               className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
                 scope === 'complete'
-                  ? 'border-primary-600 bg-purple-50/80 ring-2 ring-primary-500/20'
+                  ? 'border-primary-600 bg-purple-50/80 ring-2 ring-primary-500/20 shadow-xs'
                   : 'border-slate-200 bg-white hover:bg-slate-50'
               }`}
             >
@@ -336,10 +390,10 @@ export const ExportOptionsModal: React.FC<ExportOptionsModalProps> = ({
 
             <button
               type="button"
-              onClick={() => setScope('status')}
+              onClick={() => handleSelectScope('status')}
               className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
                 scope === 'status'
-                  ? 'border-primary-600 bg-purple-50/80 ring-2 ring-primary-500/20'
+                  ? 'border-primary-600 bg-purple-50/80 ring-2 ring-primary-500/20 shadow-xs'
                   : 'border-slate-200 bg-white hover:bg-slate-50'
               }`}
             >
@@ -358,10 +412,10 @@ export const ExportOptionsModal: React.FC<ExportOptionsModalProps> = ({
 
             <button
               type="button"
-              onClick={() => setScope('custom')}
+              onClick={() => handleSelectScope('custom')}
               className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
                 scope === 'custom'
-                  ? 'border-primary-600 bg-purple-50/80 ring-2 ring-primary-500/20'
+                  ? 'border-primary-600 bg-purple-50/80 ring-2 ring-primary-500/20 shadow-xs'
                   : 'border-slate-200 bg-white hover:bg-slate-50'
               }`}
             >
@@ -388,48 +442,65 @@ export const ExportOptionsModal: React.FC<ExportOptionsModalProps> = ({
                 <Filter className="w-3.5 h-3.5 text-primary-600" />
                 Select Statuses to Include
               </span>
-              <div className="flex items-center gap-1.5 text-[11px]">
+              <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
                 <button
                   type="button"
                   onClick={() => setSelectedStatuses(['Open'])}
-                  className="px-2 py-0.5 rounded bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 font-semibold"
+                  className="px-2 py-0.5 rounded bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 font-semibold cursor-pointer"
                 >
                   Open Only
                 </button>
                 <button
                   type="button"
                   onClick={() => setSelectedStatuses(['Fixed'])}
-                  className="px-2 py-0.5 rounded bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 font-semibold"
+                  className="px-2 py-0.5 rounded bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 font-semibold cursor-pointer"
                 >
                   Fixed Only
                 </button>
                 <button
                   type="button"
                   onClick={() => setSelectedStatuses(['Open', 'Partially Fixed'])}
-                  className="px-2 py-0.5 rounded bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 font-semibold"
+                  className="px-2 py-0.5 rounded bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 font-semibold cursor-pointer"
                 >
                   Open &amp; Partially Fixed
                 </button>
                 <button
                   type="button"
-                  onClick={() => setSelectedStatuses([...ALL_STATUSES])}
-                  className="px-2 py-0.5 rounded bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 font-semibold"
+                  onClick={() => setSelectedStatuses([...allAvailableStatuses])}
+                  className="px-2 py-0.5 rounded bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 font-semibold cursor-pointer"
                 >
                   Select All
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedStatuses([])}
+                  className="px-2 py-0.5 rounded bg-white hover:bg-slate-100 text-slate-500 border border-slate-200 font-semibold cursor-pointer"
+                >
+                  Clear All
                 </button>
               </div>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-              {ALL_STATUSES.map((status) => {
+              {allAvailableStatuses.map((status) => {
                 const count = statusCounts[status] || 0;
-                const isChecked = selectedStatuses.includes(status);
+                const norm = normalizeStatus(status);
+                const isChecked = selectedStatuses.some((s) => normalizeStatus(s) === norm);
                 return (
-                  <label
+                  <div
                     key={status}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => handleToggleStatus(status)}
+                    onKeyDown={(e) => {
+                      if (e.key === ' ' || e.key === 'Enter') {
+                        e.preventDefault();
+                        handleToggleStatus(status);
+                      }
+                    }}
                     className={`flex items-center justify-between p-2.5 rounded-lg border text-xs cursor-pointer select-none transition-colors ${
                       isChecked
-                        ? 'bg-white border-primary-500 shadow-2xs font-bold text-slate-900'
+                        ? 'bg-white border-primary-500 shadow-2xs font-bold text-slate-900 ring-1 ring-primary-500/20'
                         : 'bg-slate-100/70 border-slate-200 text-slate-500 hover:bg-white'
                     }`}
                   >
@@ -437,19 +508,19 @@ export const ExportOptionsModal: React.FC<ExportOptionsModalProps> = ({
                       <input
                         type="checkbox"
                         checked={isChecked}
-                        onChange={() => handleToggleStatus(status)}
-                        className="w-4 h-4 text-primary-600 rounded border-slate-300 focus:ring-primary-500 cursor-pointer"
+                        readOnly
+                        className="w-4 h-4 text-primary-600 rounded border-slate-300 focus:ring-primary-500 pointer-events-none cursor-pointer"
                       />
                       <span>{status}</span>
                     </div>
                     <span
-                      className={`font-mono text-[11px] px-1.5 py-0.2 rounded ${
-                        count > 0 ? 'bg-slate-200 text-slate-800' : 'text-slate-400'
+                      className={`font-mono text-[11px] px-1.5 py-0.5 rounded font-bold ${
+                        count > 0 ? 'bg-purple-100 text-purple-900' : 'text-slate-400 bg-slate-100'
                       }`}
                     >
                       {count}
                     </span>
-                  </label>
+                  </div>
                 );
               })}
             </div>
@@ -474,14 +545,14 @@ export const ExportOptionsModal: React.FC<ExportOptionsModalProps> = ({
                 <button
                   type="button"
                   onClick={handleSelectAllVulns}
-                  className="px-2.5 py-1 text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg font-semibold"
+                  className="px-2.5 py-1 text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg font-semibold cursor-pointer"
                 >
                   Select All ({vulns.length})
                 </button>
                 <button
                   type="button"
                   onClick={handleDeselectAllVulns}
-                  className="px-2.5 py-1 text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg font-semibold"
+                  className="px-2.5 py-1 text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg font-semibold cursor-pointer"
                 >
                   Clear Selection
                 </button>
@@ -497,11 +568,20 @@ export const ExportOptionsModal: React.FC<ExportOptionsModalProps> = ({
                 searchedVulns.map((v, index) => {
                   const isChecked = selectedVulnIds.includes(v.id);
                   return (
-                    <label
+                    <div
                       key={v.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => handleToggleVuln(v.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === ' ' || e.key === 'Enter') {
+                          e.preventDefault();
+                          handleToggleVuln(v.id);
+                        }
+                      }}
                       className={`flex items-center justify-between p-2.5 rounded-lg border text-xs cursor-pointer select-none transition-colors ${
                         isChecked
-                          ? 'bg-white border-primary-500 shadow-2xs'
+                          ? 'bg-white border-primary-500 shadow-2xs ring-1 ring-primary-500/20'
                           : 'bg-white/60 border-slate-200 hover:bg-white text-slate-600'
                       }`}
                     >
@@ -509,8 +589,8 @@ export const ExportOptionsModal: React.FC<ExportOptionsModalProps> = ({
                         <input
                           type="checkbox"
                           checked={isChecked}
-                          onChange={() => handleToggleVuln(v.id)}
-                          className="w-4 h-4 text-primary-600 rounded border-slate-300 focus:ring-primary-500 cursor-pointer shrink-0"
+                          readOnly
+                          className="w-4 h-4 text-primary-600 rounded border-slate-300 focus:ring-primary-500 pointer-events-none cursor-pointer shrink-0"
                         />
                         <span className="font-mono text-slate-400 font-bold shrink-0">
                           #{index + 1}
@@ -526,7 +606,7 @@ export const ExportOptionsModal: React.FC<ExportOptionsModalProps> = ({
                         </span>
                         <StatusBadge status={v.status} size="sm" />
                       </div>
-                    </label>
+                    </div>
                   );
                 })
               )}
@@ -554,4 +634,3 @@ export const ExportOptionsModal: React.FC<ExportOptionsModalProps> = ({
     </Modal>
   );
 };
-

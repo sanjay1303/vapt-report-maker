@@ -263,10 +263,11 @@ export const DetailedReportPage: React.FC<DetailedReportPageProps> = ({
   const handleConfirmExportPDF = (filtered: Vulnerability[]) => {
     setIsExportModalOpen(false);
     setActiveFilteredVulns(filtered);
-    showToast(`PDF print view ready with ${filtered.length} findings.`);
+    showToast(`PDF print view ready with ${filtered.length} scoped findings.`);
+    // Allow React 18 DOM batching and A4 layout recalculation to complete before triggering print dialog
     setTimeout(() => {
       window.print();
-    }, 150);
+    }, 350);
   };
 
   const handleConfirmExportWord = async (filtered: Vulnerability[]) => {
