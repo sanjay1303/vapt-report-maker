@@ -36,10 +36,19 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ onNavigate }) => {
   const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
 
   // Form states
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    name: string;
+    client: string;
+    applicationUrl?: string;
+    environment: ProjectEnvironment;
+    status: ProjectStatus;
+    description: string;
+  }>({
     name: '',
     client: '',
-    status: 'In Progress' as ProjectStatus,
+    applicationUrl: '',
+    environment: 'Production',
+    status: 'In Progress',
     description: '',
   });
 
@@ -92,6 +101,8 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ onNavigate }) => {
     setFormData({
       name: '',
       client: '',
+      applicationUrl: '',
+      environment: 'Production',
       status: 'In Progress',
       description: '',
     });
@@ -103,6 +114,8 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ onNavigate }) => {
     setFormData({
       name: project.name,
       client: project.client,
+      applicationUrl: project.applicationUrl || '',
+      environment: project.environment || 'Production',
       status: project.status,
       description: project.description,
     });
@@ -112,11 +125,19 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ onNavigate }) => {
     e.preventDefault();
     if (!formData.name.trim() || !formData.client.trim()) return;
 
+    const payload = {
+      ...formData,
+      name: formData.name.trim(),
+      client: formData.client.trim(),
+      applicationUrl: formData.applicationUrl?.trim() || undefined,
+      description: formData.description.trim(),
+    };
+
     if (editingProject) {
-      storage.updateProject(editingProject.id, formData);
+      storage.updateProject(editingProject.id, payload);
       setEditingProject(null);
     } else {
-      storage.addProject(formData);
+      storage.addProject(payload);
       setIsCreateOpen(false);
     }
     refreshProjects();
@@ -248,7 +269,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ onNavigate }) => {
                 paginatedProjects.map((p, index) => {
                   const rowNumber = (currentPage - 1) * itemsPerPage + index + 1;
                   const pModules = storage.getModules(p.id);
-                  const envList = Array.from(new Set(pModules.map((m) => m.environment).filter(Boolean)));
+                  const envList = Array.from(new Set([p.environment, ...pModules.map((m) => m.environment)].filter(Boolean)));
                   const displayEnv = envList.length > 0 ? envList.join(', ') : (p.environment || '—');
                   return (
                     <tr
@@ -362,22 +383,57 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({ onNavigate }) => {
             />
           </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Environment <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={formData.environment}
+                onChange={(e) =>
+                  setFormData({ ...formData, environment: e.target.value as ProjectEnvironment })
+                }
+                className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 cursor-pointer font-medium"
+              >
+                <option value="Production">Production</option>
+                <option value="QA">QA</option>
+                <option value="Staging">Staging</option>
+                <option value="Dev">Dev</option>
+                <option value="UAT">UAT</option>
+                <option value="Internal">Internal</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Status
+              </label>
+              <select
+                value={formData.status}
+                onChange={(e) =>
+                  setFormData({ ...formData, status: e.target.value as ProjectStatus })
+                }
+                className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 cursor-pointer"
+              >
+                <option value="In Progress">In Progress</option>
+                <option value="Completed">Completed</option>
+                <option value="Planning">Planning</option>
+                <option value="On Hold">On Hold</option>
+              </select>
+            </div>
+          </div>
+
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-              Status
+              Target Application URL
             </label>
-            <select
-              value={formData.status}
-              onChange={(e) =>
-                setFormData({ ...formData, status: e.target.value as ProjectStatus })
-              }
+            <input
+              type="url"
+              placeholder="https://app.example.com"
+              value={formData.applicationUrl || ''}
+              onChange={(e) => setFormData({ ...formData, applicationUrl: e.target.value })}
               className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600"
-            >
-              <option value="In Progress">In Progress</option>
-              <option value="Completed">Completed</option>
-              <option value="Planning">Planning</option>
-              <option value="On Hold">On Hold</option>
-            </select>
+            />
           </div>
 
           <div>
